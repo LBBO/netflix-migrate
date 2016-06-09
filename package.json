@@ -1,0 +1,29 @@
+{
+  "name": "netflix-migrate",
+  "version": "0.0.1",
+  "description": "A command-line tool to migrate data to and from Netflix profiles",
+  "keywords": ["netflix", "migrate"],
+  "license": "MIT",
+  "author": "Lana Larsen <lana@transcode.rs>",
+  "homepage": "https://github.com/genderquery/netflix-migrate",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/genderquery/netflix-migrate.git"
+  },
+  "main": "./index.js",
+  "bin": {
+    "netflix-migrate": "./index.js"
+  },
+  "dependencies": {
+    "async": "^2.0.0-rc.5",
+    "commander": "^2.9.0",
+    "netflix2": "0.0.1",
+    "prompt": "^1.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^2.10.2",
+    "eslint-config-standard": "^5.3.1",
+    "eslint-plugin-promise": "^1.1.0",
+    "eslint-plugin-standard": "^1.3.2"
+  }
+}
