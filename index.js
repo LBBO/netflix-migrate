@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict'
 
+require('array.prototype.find').shim()
 var async = require('async')
 var fs = require('fs')
 var Netflix = require('netflix2')
