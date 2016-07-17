@@ -1,8 +1,11 @@
 {
   "name": "netflix-migrate",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A command-line tool to migrate data to and from Netflix profiles",
-  "keywords": ["netflix", "migrate"],
+  "keywords": [
+    "netflix",
+    "migrate"
+  ],
   "license": "MIT",
   "author": "Lana Larsen <lana@transcode.rs>",
   "homepage": "https://github.com/genderquery/netflix-migrate",
