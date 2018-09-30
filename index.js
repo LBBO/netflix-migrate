@@ -1,26 +1,26 @@
 #!/usr/bin/env node
-'use strict'
+'use strict';
 
-require('array.prototype.find').shim()
-var async = require('async')
-var fs = require('fs')
-var Netflix = require('netflix2')
-var program = require('commander')
-var prompt = require('prompt')
-var util = require('util')
+require('array.prototype.find').shim();
+var async = require('async');
+var fs = require('fs');
+var Netflix = require('netflix2');
+var program = require('commander');
+var prompt = require('prompt');
+var util = require('util');
 
 function delayCallback (callback, ms) {
   return function (error, result) {
     if (error) {
-      return callback(error)
+      return callback(error);
     }
-    setTimeout(callback, ms)
-  }
+    setTimeout(callback, ms);
+  };
 }
 
 function exitWithMessage (message) {
-  console.error(message)
-  process.exit(1)
+  console.error(message);
+  process.exit(1);
 }
 
 function login(netflix, args) {
@@ -28,85 +28,94 @@ function login(netflix, args) {
     var credentials = {
       email: args.email,
       password: args.password
-    }
+    };
   
-    netflix.login(credentials, callback)
-  }
+    netflix.login(credentials, callback);
+  };
 }
 
 function getProfileGuid (netflix, args) {
   return function(callback) {
     netflix.getProfiles(function (error, profiles) {
       if (error) {
-        return callback(error)
+        return callback(error);
       }
+
       var profile = profiles.find(function (profile) {
-        return profile.firstName === args.profile
-      })
+        return profile.firstName === args.profile;
+      });
+
       if (profile === undefined) {
-        return callback(
-          new Error(util.format('No profile with name "%s"', args.profile))
-        )
+        return callback(new Error(`No profile with name "${args.profile}"`));
       }
-      callback(null, profile.guid)
-    })
-  }
+
+      callback(null, profile.guid);
+    });
+  };
 }
 
 function switchProfile (netflix) {
   return function (guid, callback) {
-    netflix.switchProfile(guid, callback)
-  }
+    netflix.switchProfile(guid, callback);
+  };
 }
 
 function getRatingHistory (netflix) {
   return function (callback) {
     netflix.getRatingHistory(function (error, ratings) {
       if (error) {
-        return callback(error)
+        return callback(error);
       }
-      var jsonRatings = JSON.stringify(ratings, null, program.spaces)
+
+      var jsonRatings = JSON.stringify(ratings, null, program.spaces);
+
       if (program.export === true) {
-        process.stdout.write(jsonRatings)
+        process.stdout.write(jsonRatings);
       } else {
-        fs.writeFileSync(program.export, jsonRatings)
+        fs.writeFileSync(program.export, jsonRatings);
       }
-      callback()
-    })
-  }
+
+      callback();
+    });
+  };
 }
 
 function setRatingHistory (netflix) {
   return function (callback) {
-    var jsonRatings
+    var jsonRatings;
+
     if (program.import === true) {
-      jsonRatings = process.stdin.read()
+      jsonRatings = process.stdin.read();
     } else {
-      jsonRatings = fs.readFileSync(program.import)
+      jsonRatings = fs.readFileSync(program.import);
     }
-    var ratings
+
+    var ratings;
+
     try {
-      ratings = JSON.parse(jsonRatings)
+      ratings = JSON.parse(jsonRatings);
     } catch (error) {
-      callback(error)
+      callback(error);
     }
+
     async.eachSeries(ratings, function (rating, callback) {
-      console.log('Importing ' + rating.title)
+      console.log('Importing ' + rating.title);
       // use a delay so we don't make Netflix angry
       netflix.setVideoRating(rating.movieID, rating.yourRating,
-        delayCallback(callback, 100))
+        delayCallback(callback, 100));
     },
     function (error) {
       if (error) {
-        exitWithMessage(error)
+        exitWithMessage(error);
       }
-      console.log('Import complete')
-    })
-  }
+
+      console.log('Import complete');
+    });
+  };
 }
 
 function main (args) {
-  var netflix = new Netflix()
+  var netflix = new Netflix();
 
   async.waterfall([
     login(netflix, args),
@@ -116,9 +125,9 @@ function main (args) {
   ],
   function (error) {
     if (error) {
-      exitWithMessage(error)
+      exitWithMessage(error);
     }
-  })
+  });
 }
 
 program
@@ -128,22 +137,22 @@ program
   .option('-i, --import [file]')
   .option('-x, --export [file]')
   .option('-s, --spaces [spaces]')
-  .parse(process.argv)
+  .parse(process.argv);
 
 if (program.import && program.export) {
-  exitWithMessage('Options `import` and `export` cannot be used together.')
+  exitWithMessage('Options `import` and `export` cannot be used together.');
 }
 
-program.export = program.export || !program.import
+program.export = program.export || !program.import;
 
 if (program.spaces === true) {
-  program.spaces = 4
+  program.spaces = 4;
 }
-program.spaces = parseInt(program.spaces) || null
+program.spaces = parseInt(program.spaces) || null;
 
-prompt.override = program
-prompt.message = ''
-prompt.colors = false
+prompt.override = program;
+prompt.message = '';
+prompt.colors = false;
 
 var prompts = [{
   name: 'email',
@@ -155,17 +164,17 @@ var prompts = [{
 }, {
   name: 'profile',
   description: 'Profile'
-}]
+}];
 
 prompt.get(prompts, function (error, args) {
   if (error) {
     if (error.message === 'canceled') {
-      console.log() // new line
+      console.log(); // new line
     } else {
-      process.statusCode = 1
-      console.error(error)
+      process.statusCode = 1;
+      console.error(error);
     }
   } else {
-    main(args)
+    main(args);
   }
 })

@@ -2,5 +2,14 @@
   "extends": "standard",
   "env": {
     "node": true
+  },
+  "rules": {
+    "space-before-function-paren": 0,
+    "no-trailing-spaces": "off",
+    "semi": "off",
+    "indent": "off"
+  },
+  "parserOptions": {
+    "ecmaVersion": 2017
   }
 }
