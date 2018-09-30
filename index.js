@@ -2,132 +2,104 @@
 'use strict';
 
 require('array.prototype.find').shim();
-var async = require('async');
-var fs = require('fs');
-var Netflix = require('netflix2');
-var program = require('commander');
-var prompt = require('prompt');
-var util = require('util');
+const fs = require('fs');
+const Netflix = require('netflix2');
+const program = require('commander');
+const prompt = require('prompt');
+const util = require('util');
 
-function delayCallback (callback, ms) {
-  return function (error, result) {
-    if (error) {
-      return callback(error);
-    }
-    setTimeout(callback, ms);
-  };
-}
+Netflix.prototype.login = util.promisify(Netflix.prototype.login);
+Netflix.prototype.getProfiles = util.promisify(Netflix.prototype.getProfiles);
+Netflix.prototype.switchProfile = util.promisify(Netflix.prototype.switchProfile);
+Netflix.prototype.getRatingHistory = util.promisify(Netflix.prototype.getRatingHistory);
+Netflix.prototype.setVideoRating = util.promisify(Netflix.prototype.setVideoRating);
 
-function exitWithMessage (message) {
+function exitWithMessage(message) {
   console.error(message);
   process.exit(1);
 }
 
-function login(netflix, args) {
-  return function(callback) {
-    var credentials = {
-      email: args.email,
-      password: args.password
-    };
-  
-    netflix.login(credentials, callback);
-  };
+async function waterfall(promises) {
+  return promises.reduce((promiseChain, currPromise) => promiseChain.then(currPromise), Promise.resolve());
 }
 
-function getProfileGuid (netflix, args) {
-  return function(callback) {
-    netflix.getProfiles(function (error, profiles) {
-      if (error) {
-        return callback(error);
-      }
+async function login(netflix, credentials) {
+  return netflix.login(credentials);
+}
 
-      var profile = profiles.find(function (profile) {
-        return profile.firstName === args.profile;
-      });
+async function getProfileGuid(netflix, profileName) {
+  return netflix.getProfiles()
+    .then(profiles => {
+      const profile = profiles.find(profile => profile.firstName === profileName);
 
       if (profile === undefined) {
-        return callback(new Error(`No profile with name "${args.profile}"`));
+        throw new Error(`No profile with name "${profileName}"`);
+      } else {
+        return profile;
       }
-
-      callback(null, profile.guid);
     });
-  };
 }
 
-function switchProfile (netflix) {
-  return function (guid, callback) {
-    netflix.switchProfile(guid, callback);
-  };
+async function switchProfile(netflix, guid) {
+  return netflix.switchProfile(guid);
 }
 
-function getRatingHistory (netflix) {
-  return function (callback) {
-    netflix.getRatingHistory(function (error, ratings) {
-      if (error) {
-        return callback(error);
-      }
-
+async function getRatingHistory(netflix) {
+  return netflix.getRatingHistory()
+    .then(ratings => {
       var jsonRatings = JSON.stringify(ratings, null, program.spaces);
-
+      // @todo make program.export more intuitive (should EITHER define program mode OR contain output file path)
       if (program.export === true) {
         process.stdout.write(jsonRatings);
       } else {
         fs.writeFileSync(program.export, jsonRatings);
       }
-
-      callback();
     });
-  };
 }
 
-function setRatingHistory (netflix) {
-  return function (callback) {
-    var jsonRatings;
+async function setRatingHistory(netflix) {
+  var jsonRatings;
 
-    if (program.import === true) {
-      jsonRatings = process.stdin.read();
-    } else {
-      jsonRatings = fs.readFileSync(program.import);
-    }
+  if (program.import === true) {
+    jsonRatings = process.stdin.read()
+  } else {
+    jsonRatings = fs.readFileSync(program.import)
+  }
 
-    var ratings;
+  var ratings = JSON.parse(jsonRatings);
 
+  return waterfall(ratings.map(rating => () => new Promise((resolve, reject) => {
     try {
-      ratings = JSON.parse(jsonRatings);
-    } catch (error) {
-      callback(error);
+      netflix.setVideoRating(rating.movieID, rating.yourRating)
+      .then(() => {
+        setTimeout(resolve, 100);
+      });
+    } catch (e) {
+      reject(e);
     }
-
-    async.eachSeries(ratings, function (rating, callback) {
-      console.log('Importing ' + rating.title);
-      // use a delay so we don't make Netflix angry
-      netflix.setVideoRating(rating.movieID, rating.yourRating,
-        delayCallback(callback, 100));
-    },
-    function (error) {
-      if (error) {
-        exitWithMessage(error);
-      }
-
-      console.log('Import complete');
-    });
-  };
+  })));
 }
 
-function main (args) {
+async function main(args) {
   var netflix = new Netflix();
 
-  async.waterfall([
-    login(netflix, args),
-    getProfileGuid(netflix, args),
-    switchProfile(netflix),
-    program.export ? getRatingHistory(netflix) : setRatingHistory(netflix)
-  ],
-  function (error) {
-    if (error) {
-      exitWithMessage(error);
+  try {
+    await login(netflix, {
+      email: args.email,
+      password: args.password
+    });
+
+    const profileGuid = await getProfileGuid(netflix, args.profile);
+    await switchProfile(netflix, profileGuid);
+
+    if (program.export) {
+      await getRatingHistory(netflix);
+    } else {
+      await setRatingHistory(netflix);
     }
-  });
+  } catch (e) {
+    exitWithMessage(e);
+  }
 }
 
 program
