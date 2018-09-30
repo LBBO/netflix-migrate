@@ -67,20 +67,22 @@ async function switchProfile(netflix, guid) {
 
 /**
  * Gets rating history from current profile and prints it
- * to console or file specified in program.export
+ * to console or specified file
  * @param {netflix2} netflix
+ * @param {String} [filename]
+ * @param {Number | Null} spaces
  * @returns {Promise} Promise that is resolved once rating history has been fetched
- * @todo make pure by extracting output medium / file path into parameter
+ * @todo make pure by extracting spaces into parameter
  */
-async function getRatingHistory(netflix) {
+async function getRatingHistory(netflix, fileName, spaces) {
   return netflix.getRatingHistory()
     .then(ratings => {
-      var jsonRatings = JSON.stringify(ratings, null, program.spaces);
+      var jsonRatings = JSON.stringify(ratings, null, spaces);
 
-      if (program.export === true) {
+      if (fileName === undefined) {
         process.stdout.write(jsonRatings);
       } else {
-        fs.writeFileSync(program.export, jsonRatings);
+        fs.writeFileSync(fileName, jsonRatings);
       }
     });
 }
@@ -91,16 +93,16 @@ async function getRatingHistory(netflix) {
  * each written rating in order to not annoy Netflix, so this may
  * take a while.
  * @param {netflix2} netflix
+ * @param {String} [filename]
  * @returns {Promise} Promise that is resolved after setting the last rating
- * @todo make pure by extracting output medium / file path into parameter
  */
-async function setRatingHistory(netflix) {
+async function setRatingHistory(netflix, filename) {
   var jsonRatings;
 
-  if (program.import === true) {
-    jsonRatings = process.stdin.read()
+  if (filename === undefined) {
+    jsonRatings = process.stdin.read();
   } else {
-    jsonRatings = fs.readFileSync(program.import)
+    jsonRatings = fs.readFileSync(filename);
   }
 
   var ratings = JSON.parse(jsonRatings);
@@ -120,8 +122,7 @@ async function setRatingHistory(netflix) {
 /**
  * Logs into specified Netflix account and profile and performs action
  * specified by program.export
- * @param {{email: String, password: String, profile: String}} args 
- * @todo make pure by extracting desired action into parameter
+ * @param {{email: String, password: String, profile: String, export: String | Boolean, import: String | Boolean, shouldExport: Boolean, spaces: Number | Null}} args 
  */
 async function main(args) {
   var netflix = new Netflix();
@@ -135,10 +136,12 @@ async function main(args) {
     const profileGuid = await getProfileGuid(netflix, args.profile);
     await switchProfile(netflix, profileGuid);
 
-    if (program.export) {
-      await getRatingHistory(netflix);
+    if (args.shouldExport) {
+      const filename = args.export === true ? undefined : args.export;
+      await getRatingHistory(netflix, filename, args.spaces);
     } else {
-      await setRatingHistory(netflix);
+      const filename = args.import === true ? undefined : args.import;
+      await setRatingHistory(netflix, filename);
     }
   } catch (e) {
     exitWithMessage(e);
@@ -159,10 +162,7 @@ if (program.import && program.export) {
   exitWithMessage('Options `import` and `export` cannot be used together.');
 }
 
-/**
- * @todo make program.export more intuitive (should EITHER define program mode OR contain output file path)
- */
-program.export = program.export || !program.import;
+const shouldExport = program.export || !program.import;
 
 // If arg "spaces" is set, use either it's value or a default value of 4
 if (program.spaces === true) {
@@ -198,6 +198,10 @@ prompt.get(prompts, function (error, args) {
       console.error(error);
     }
   } else {
-    main(args);
+    main({
+      shouldExport,
+      spaces: program.spaces,
+      ...args
+    });
   }
-})
+});
