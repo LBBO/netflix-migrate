@@ -218,3 +218,115 @@ describe('getRatingHistory', () => {
 			.catch(done);
 	});
 });
+
+describe.only('setRatingHistory', () => {
+	let netflix, netflixSetVideoRating, processStdinRead, fsReadFileSync, waterfallStub;
+	const filename = 'test.json';
+	const ratings = [
+		{
+			'ratingType': 'star',
+			'title': 'Some movie',
+			'movieID': 12345678,
+			'yourRating': 5,
+			'intRating': 50,
+			'date': '01/02/2016',
+			'timestamp': 1234567890123,
+			'comparableDate': 1234567890
+		},
+		{
+			'ratingType': 'thumb',
+			'title': 'Amazing Show',
+			'movieID': 87654321,
+			'yourRating': 2,
+			'date': '02/02/2018',
+			'timestamp': 2234567890123,
+			'comparableDate': 2234567890
+		}
+	];
+
+	// JSON representation is hard coded into this test in order to notice when JSON.stringify changes
+	const ratingsJSON = '[{"ratingType":"star","title":"Some movie","movieID":12345678,"yourRating":5,"intRating":50,"date":"01/02/2016","timestamp":1234567890123,"comparableDate":1234567890},{"ratingType":"thumb","title":"Amazing Show","movieID":87654321,"yourRating":2,"date":"02/02/2018","timestamp":2234567890123,"comparableDate":2234567890}]';
+
+	beforeEach(() => {
+		netflix = new Netflix();
+		netflixSetVideoRating = sinon.stub(netflix, 'setVideoRating')
+			.returns(Promise.resolve());
+		processStdinRead = sinon.stub(process.stdin, 'read')
+			.returns(ratingsJSON);
+		fsReadFileSync = sinon.stub(fs, 'readFileSync')
+			.returns(ratingsJSON);
+		waterfallStub = sinon.stub(main, 'waterfall').returns(Promise.resolve());
+	});
+
+	afterEach(() => {
+		netflixSetVideoRating.restore();
+		processStdinRead.restore();
+		fsReadFileSync.restore();
+		waterfallStub.restore();
+	});
+
+	it('Should return a promise', () => {
+		processStdinRead.returns('[]');
+		expect(setRatingHistory(netflix)).to.be.instanceOf(Promise);
+	});
+
+	it('Should read rating history from file when filename is specified', (done) => {
+		setRatingHistory(netflix, filename)
+			.then(() => {
+				expect(fsReadFileSync).to.have.been.calledOnce;
+				expect(fsReadFileSync).to.have.been.calledWithExactly(filename);
+				expect(processStdinRead).to.not.have.been.calledOnce;
+				done();
+			})
+			.catch(done);
+	});
+
+	it('Should read rating history from stdin when filename is not specified', (done) => {
+		setRatingHistory(netflix)
+			.then(() => {
+				expect(processStdinRead).to.have.been.calledOnce;
+				expect(fsReadFileSync).to.not.have.been.calledOnce;
+				done();
+			})
+			.catch(done);
+	});
+
+	it('Should take about 100ms per rating due to timeout between requests', (done) => {
+		const beginning = Date.now().valueOf();
+		setRatingHistory(netflix)
+			.then(() => {
+				const end = Date.now().valueOf();
+				expect(end - beginning).to.not.be.lessThan(ratings.length * 100);
+				done();
+			})
+			.catch(done);
+	});
+
+	it('Should call netflix.setVideoRating once per rating', (done) => {
+		setRatingHistory(netflix)
+			.then(() => {
+				expect(netflixSetVideoRating).to.have.callCount(ratings.length);
+
+				ratings.forEach(rating => {
+					expect(netflixSetVideoRating).to.have.been.calledWithExactly(rating.movieID, rating.yourRating);
+				});
+
+				done();
+			})
+			.catch(done);
+	});
+
+	it('Should call netflix.setVideoRating in correct order', (done) => {
+		setRatingHistory(netflix)
+			.then(() => {
+				for (let i = 0; i < ratings.length; i++) {
+					expect(netflixSetVideoRating.getCall(i))
+					.to.have.been.calledWithExactly(
+						ratings[i].movieID, ratings[i].yourRating
+					);
+				}
+				done();
+			})
+			.catch(done);
+	});
+});
