@@ -219,7 +219,7 @@ describe('getRatingHistory', () => {
 	});
 });
 
-describe.only('setRatingHistory', () => {
+describe('setRatingHistory', () => {
 	let netflix, netflixSetVideoRating, processStdinRead, fsReadFileSync, waterfallStub;
 	const filename = 'test.json';
 	const ratings = [
