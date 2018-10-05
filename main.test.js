@@ -220,7 +220,7 @@ describe('getRatingHistory', () => {
 });
 
 describe('setRatingHistory', () => {
-	let netflix, netflixSetVideoRating, processStdinRead, fsReadFileSync, waterfallStub;
+	let netflix, netflixSetVideoRating, processStdinRead, fsReadFileSync;
 	const filename = 'test.json';
 	const ratings = [
 		{
@@ -255,14 +255,12 @@ describe('setRatingHistory', () => {
 			.returns(ratingsJSON);
 		fsReadFileSync = sinon.stub(fs, 'readFileSync')
 			.returns(ratingsJSON);
-		waterfallStub = sinon.stub(main, 'waterfall').returns(Promise.resolve());
 	});
 
 	afterEach(() => {
 		netflixSetVideoRating.restore();
 		processStdinRead.restore();
 		fsReadFileSync.restore();
-		waterfallStub.restore();
 	});
 
 	it('Should return a promise', () => {
@@ -314,6 +312,33 @@ describe('setRatingHistory', () => {
 				done();
 			})
 			.catch(done);
+	});
+
+	it('Should call main.waterfall once with an array of functions', (done) => {
+		const waterfallStub = sinon.stub(main, 'waterfall').returns(Promise.resolve());
+
+		setRatingHistory(netflix)
+			.then(() => {
+				expect(waterfallStub).to.have.been.calledOnce;
+				const functions = waterfallStub.args[0][0];
+				expect(functions).to.have.lengthOf(ratings.length);
+
+				functions.forEach(func => {
+					expect(func).to.be.instanceOf(Function);
+					expect(func()).to.be.instanceOf(Promise);
+
+					netflixSetVideoRating.returns(Promise.resolve());
+					expect(func()).to.eventually.be.fulfilled;
+
+					netflixSetVideoRating.returns(Promise.reject());
+					expect(func()).to.eventually.be.rejected;
+				});
+
+				done();
+			})
+			.catch(done);
+		
+		waterfallStub.restore();
 	});
 
 	it('Should call netflix.setVideoRating in correct order', (done) => {

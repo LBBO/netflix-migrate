@@ -16,10 +16,39 @@ Netflix.prototype.getRatingHistory = util.promisify(Netflix.prototype.getRatingH
 Netflix.prototype.setVideoRating = util.promisify(Netflix.prototype.setVideoRating);
 
 /**
+ * Logs into specified Netflix account and profile and performs action
+ * specified by program.export
+ * @param {{email: String, password: String, profile: String, export: String | Boolean, import: String | Boolean, shouldExport: Boolean, spaces: Number | Null}} args 
+ */
+async function main(args) {
+  var netflix = new Netflix();
+
+  try {
+    await netflix.login({
+      email: args.email,
+      password: args.password
+    });
+
+    const profileGuid = await main.getProfileGuid(netflix, args.profile);
+    await main.switchProfile(netflix, profileGuid);
+
+    if (args.shouldExport) {
+      const filename = args.export === true ? undefined : args.export;
+      await main.getRatingHistory(netflix, filename, args.spaces);
+    } else {
+      const filename = args.import === true ? undefined : args.import;
+      await main.setRatingHistory(netflix, filename);
+    }
+  } catch (e) {
+    main.exitWithMessage(e);
+  }
+}
+
+/**
  * Prints error message to console and exits the process
  * @param {String | Error} message 
  */
-function exitWithMessage(message) {
+main.exitWithMessage = function(message) {
   console.error(message);
   process.exit(1);
 }
@@ -30,7 +59,7 @@ function exitWithMessage(message) {
  * @param {Promise[]} promises
  * @returns {Promise}
  */
-async function waterfall(promises) {
+main.waterfall = async function(promises) {
   return promises.reduce((promiseChain, currPromise) => promiseChain.then(currPromise), Promise.resolve());
 }
 
@@ -40,7 +69,7 @@ async function waterfall(promises) {
  * @param {String} profileName 
  * @returns {Promise} Promise that is resolved with guid once fetched
  */
-async function getProfileGuid(netflix, profileName) {
+main.getProfileGuid = async function(netflix, profileName) {
   return netflix.getProfiles()
     .then(profiles => {
       const profile = profiles.find(profile => profile.firstName === profileName);
@@ -59,7 +88,7 @@ async function getProfileGuid(netflix, profileName) {
  * @param {*} guid
  * @returns {Promise} Promise that is resolved once profile is switched
  */
-async function switchProfile(netflix, guid) {
+main.switchProfile = async function(netflix, guid) {
   return netflix.switchProfile(guid);
 }
 
@@ -72,7 +101,7 @@ async function switchProfile(netflix, guid) {
  * @returns {Promise} Promise that is resolved once rating history has been fetched
  * @todo make pure by extracting spaces into parameter
  */
-async function getRatingHistory(netflix, fileName, spaces) {
+main.getRatingHistory = async function(netflix, fileName, spaces) {
   return netflix.getRatingHistory()
     .then(ratings => {
       var jsonRatings = JSON.stringify(ratings, null, spaces);
@@ -94,7 +123,7 @@ async function getRatingHistory(netflix, fileName, spaces) {
  * @param {String} [filename]
  * @returns {Promise} Promise that is resolved after setting the last rating
  */
-async function setRatingHistory(netflix, filename) {
+main.setRatingHistory = async function(netflix, filename) {
   var jsonRatings;
 
   if (filename === undefined) {
@@ -105,7 +134,7 @@ async function setRatingHistory(netflix, filename) {
 
   var ratings = JSON.parse(jsonRatings);
 
-  return waterfall(ratings.map(rating => () => new Promise((resolve, reject) => {
+  return main.waterfall(ratings.map(rating => () => new Promise((resolve, reject) => {
     try {
       netflix.setVideoRating(rating.movieID, rating.yourRating)
       .then(() => {
@@ -117,39 +146,4 @@ async function setRatingHistory(netflix, filename) {
   })));
 }
 
-/**
- * Logs into specified Netflix account and profile and performs action
- * specified by program.export
- * @param {{email: String, password: String, profile: String, export: String | Boolean, import: String | Boolean, shouldExport: Boolean, spaces: Number | Null}} args 
- */
-async function main(args) {
-  var netflix = new Netflix();
-
-  try {
-    await netflix.login({
-      email: args.email,
-      password: args.password
-    });
-
-    const profileGuid = await getProfileGuid(netflix, args.profile);
-    await switchProfile(netflix, profileGuid);
-
-    if (args.shouldExport) {
-      const filename = args.export === true ? undefined : args.export;
-      await getRatingHistory(netflix, filename, args.spaces);
-    } else {
-      const filename = args.import === true ? undefined : args.import;
-      await setRatingHistory(netflix, filename);
-    }
-  } catch (e) {
-    exitWithMessage(e);
-  }
-}
-
 module.exports = main;
-module.exports.waterfall = waterfall;
-module.exports.exitWithMessage = exitWithMessage;
-module.exports.getProfileGuid = getProfileGuid;
-module.exports.switchProfile = switchProfile;
-module.exports.getRatingHistory = getRatingHistory;
-module.exports.setRatingHistory = setRatingHistory;
