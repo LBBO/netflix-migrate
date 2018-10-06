@@ -14,6 +14,7 @@ Netflix.prototype.getProfiles = util.promisify(Netflix.prototype.getProfiles);
 Netflix.prototype.switchProfile = util.promisify(Netflix.prototype.switchProfile);
 Netflix.prototype.getRatingHistory = util.promisify(Netflix.prototype.getRatingHistory);
 Netflix.prototype.setVideoRating = util.promisify(Netflix.prototype.setVideoRating);
+const sleep = util.promisify(setTimeout);
 
 /**
  * Logs into specified Netflix account and profile and performs action
@@ -70,16 +71,14 @@ main.waterfall = async function(promises) {
  * @returns {Promise} Promise that is resolved with guid once fetched
  */
 main.getProfileGuid = async function(netflix, profileName) {
-  return netflix.getProfiles()
-    .then(profiles => {
-      const profile = profiles.find(profile => profile.firstName === profileName);
+  const profiles = await netflix.getProfiles();
+  const profileWithCorrectName = profiles.find(profile => profile.firstName === profileName);
 
-      if (profile === undefined) {
-        throw new Error(`No profile with name "${profileName}"`);
-      } else {
-        return profile;
-      }
-    });
+  if (profileWithCorrectName === undefined) {
+    throw new Error(`No profile with name "${profileName}"`);
+  } else {
+    return profileWithCorrectName;
+  }
 }
 
 /**
@@ -102,16 +101,14 @@ main.switchProfile = async function(netflix, guid) {
  * @todo make pure by extracting spaces into parameter
  */
 main.getRatingHistory = async function(netflix, fileName, spaces) {
-  return netflix.getRatingHistory()
-    .then(ratings => {
-      var jsonRatings = JSON.stringify(ratings, null, spaces);
-
-      if (fileName === undefined) {
-        process.stdout.write(jsonRatings);
-      } else {
-        fs.writeFileSync(fileName, jsonRatings);
-      }
-    });
+  const ratings = await netflix.getRatingHistory();
+  const jsonRatings = JSON.stringify(ratings, null, spaces);
+  
+  if (fileName === undefined) {
+    process.stdout.write(jsonRatings);
+  } else {
+    fs.writeFileSync(fileName, jsonRatings);
+  }
 }
 
 /**
@@ -134,16 +131,11 @@ main.setRatingHistory = async function(netflix, filename) {
 
   var ratings = JSON.parse(jsonRatings);
 
-  return main.waterfall(ratings.map(rating => () => new Promise((resolve, reject) => {
-    try {
-      netflix.setVideoRating(rating.movieID, rating.yourRating)
-      .then(() => {
-        setTimeout(resolve, 100);
-      });
-    } catch (e) {
-      reject(e);
-    }
-  })));
+  return main.waterfall(ratings.map(rating => async () => {
+    await netflix.setVideoRating(rating.movieID, rating.yourRating);
+    await sleep(100);
+    return;
+  }));
 }
 
 module.exports = main;
