@@ -355,3 +355,242 @@ describe('setRatingHistory', () => {
 			.catch(done);
 	});
 });
+
+describe('main', () => {
+	let netflix, netflixLogin, mainGetProfileGuid, mainSwitchProfile, mainGetRatingHistory,
+	mainSetRatingHistory, mainExitWithMessage, stubs, args;
+	const profile = {guid: 1234567890, firstName: 'Foo'};
+
+	beforeEach(() => {
+		netflix = new Netflix();
+		args = {};
+
+		netflixLogin = sinon.stub(netflix, 'login')
+			.returns(Promise.resolve());
+		
+		mainExitWithMessage = sinon.stub(main, 'exitWithMessage');
+
+		mainGetProfileGuid = sinon.stub(main, 'getProfileGuid')
+			.returns(Promise.resolve(profile));
+
+		mainSwitchProfile = sinon.stub(main, 'switchProfile')
+		.returns(Promise.resolve());
+
+		mainGetRatingHistory = sinon.stub(main, 'getRatingHistory')
+		.returns(Promise.resolve());
+
+		mainSetRatingHistory = sinon.stub(main, 'setRatingHistory')
+		.returns(Promise.resolve());
+		
+		stubs = [
+			netflixLogin, mainExitWithMessage, mainGetProfileGuid, mainSwitchProfile,
+			mainGetRatingHistory, mainSetRatingHistory
+		];
+	});
+
+	afterEach(() => {
+		stubs.forEach(stub => stub.restore());
+	});
+
+	it('Should return a promise', () => {
+		expect(main(args, netflix)).to.be.instanceOf(Promise);
+	});
+
+	it('Should call netflix.login with args.email and args.password', (done) => {
+		args.email = {foo: 'bar'};
+		args.password = {bar: 'foo'};
+
+		main(args, netflix)
+			.then(() => {
+				expect(netflixLogin).to.have.been.calledOnceWithExactly({
+					email: args.email,
+					password: args.password
+				})
+				done();
+			})
+			.catch(done);
+	});
+
+	it('Should call main.getProfileGuid after netflix.login', (done) => {
+		main(args, netflix)
+			.then(() => {
+				expect(mainGetProfileGuid).to.have.been.calledAfter(netflixLogin);
+				done();
+			})
+			.catch(done);
+	});
+
+	it('Should call main.getProfileGuid with args.profile', (done) => {
+		args.profile = {foo: 'bar'};
+
+		main(args, netflix)
+			.then(() => {
+				expect(mainGetProfileGuid).to.have.been.calledOnceWithExactly(netflix, args.profile);
+				done();
+			})
+			.catch(done);
+	});
+
+	it('Should call main.switchProfile after main.getProfileGuid', (done) => {
+		main(args, netflix)
+			.then(() => {
+				expect(mainSwitchProfile).to.have.been.calledAfter(mainGetProfileGuid);
+				done();
+			})
+			.catch(done);
+	});
+
+	it('Should call main.switchProfile with the result of main.getProfileGuid', (done) => {
+		main(args, netflix)
+			.then(() => {
+				expect(mainSwitchProfile).to.have.been.calledOnceWithExactly(netflix, profile);
+				done();
+			})
+			.catch(done);
+	});
+
+	describe('Should call main.getRatingHistory', () => {
+		beforeEach(() => {
+			args.shouldExport = true;
+		});
+
+		it('if args.shouldExport is true', (done) => {
+			main(args, netflix)
+				.then(() => {
+					expect(mainGetRatingHistory).to.have.been.calledOnce;
+					done();
+				})
+				.catch(done);
+		});
+	
+		it('with an undefined filename if args.export is true', (done) => {
+			args.export = true;
+			main(args, netflix)
+				.then(() => {
+					expect(mainGetRatingHistory).to.have.been.calledOnceWithExactly(netflix, undefined, undefined);
+					done();
+				})
+				.catch(done);
+		});
+	
+		it('with filename provided in args.export', (done) => {
+			args.export = {foo: 'bar'};
+			main(args, netflix)
+				.then(() => {
+					expect(mainGetRatingHistory).to.have.been.calledOnceWithExactly(netflix, args.export, undefined);
+					done();
+				})
+				.catch(done);
+		});
+	
+		it('with args.spaces', (done) => {
+			args.export = true;
+			args.spaces = {foo: 'bar'};
+			main(args, netflix)
+				.then(() => {
+					expect(mainGetRatingHistory).to.have.been.calledOnceWithExactly(netflix, undefined, args.spaces);
+					done();
+				})
+				.catch(done);
+		});
+	
+		it('after main.switchProfile', (done) => {
+			main(args, netflix)
+				.then(() => {
+					expect(mainGetRatingHistory).to.have.been.calledAfter(mainSwitchProfile);
+					done();
+				})
+				.catch(done);
+		});
+	});
+
+	describe('Should call main.setRatingHistory', () => {
+		beforeEach(() => {
+			args.shouldExport = false;
+		});
+
+		it('if args.shouldExport is false', (done) => {
+			main(args, netflix)
+				.then(() => {
+					expect(mainSetRatingHistory).to.have.been.calledOnce;
+					done();
+				})
+				.catch(done);
+		});
+	
+		it('with an undefined filename if args.import is true', (done) => {
+			args.import = true;
+			main(args, netflix)
+				.then(() => {
+					expect(mainSetRatingHistory).to.have.been.calledOnceWithExactly(netflix, undefined);
+					done();
+				})
+				.catch(done);
+		});
+	
+		it('with filename provided in args.import', (done) => {
+			args.import = {foo: 'bar'};
+			main(args, netflix)
+				.then(() => {
+					expect(mainSetRatingHistory).to.have.been.calledOnceWithExactly(netflix, args.import);
+					done();
+				})
+				.catch(done);
+		});
+	
+		it('after main.switchProfile', (done) => {
+			main(args, netflix)
+				.then(() => {
+					expect(mainSetRatingHistory).to.have.been.calledAfter(mainSwitchProfile);
+					done();
+				})
+				.catch(done);
+		});
+	});
+
+	describe('Should call main.exitWithMessage immediately when an error is thrown', () => {
+		it('by netflix.login', (done) => {
+			const err = new Error();
+			netflix.login.returns(Promise.reject(err));
+			main(args, netflix)
+				.then(() => {
+					expect(mainExitWithMessage).to.have.been.calledOnceWithExactly(err);
+					done();
+				})
+				.catch(done);
+		});
+		
+		const functionsToTest = [
+			// @todo make this work with netflix
+			// { name: 'netflix.login', parent: netflix },
+			{ name: 'main.getProfileGuid', parent: main, args: {} },
+			{ name: 'main.switchProfile', parent: main, args: {} },
+			{ name: 'main.getRatingHistory', parent: main, args: {shouldExport: true} },
+			{ name: 'main.setRatingHistory', parent: main, args: {shouldExport: false} }
+		];
+
+		for (let i = 0; i < functionsToTest.length; i++) {
+			let func = functionsToTest[i];
+
+			it(`by ${func.name}`, (done) => {
+				const err = new Error();
+				const parts = func.name.split('.');
+				func.parent[parts[1]].returns(Promise.reject(err));
+				main(func.args, netflix)
+					.then(() => {
+						expect(mainExitWithMessage).to.have.been.calledOnce;
+						expect(mainExitWithMessage).to.have.been.calledOnceWithExactly(err);
+
+						for (let j = i + 1; j < functionsToTest.length; j++) {
+							const laterFunctionName = functionsToTest[j].name.split('.')[1];
+							const laterFunction = functionsToTest[j].parent[laterFunctionName];
+							expect(laterFunction).to.not.have.been.called;
+						}
+
+						done();
+					})
+					.catch(done);
+			});
+		}
+	});
+});

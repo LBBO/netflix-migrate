@@ -21,9 +21,7 @@ const sleep = util.promisify(setTimeout);
  * specified by program.export
  * @param {{email: String, password: String, profile: String, export: String | Boolean, import: String | Boolean, shouldExport: Boolean, spaces: Number | Null}} args 
  */
-async function main(args) {
-  var netflix = new Netflix();
-
+async function main(args, netflix = new Netflix()) {
   try {
     await netflix.login({
       email: args.email,
