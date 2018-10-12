@@ -32,10 +32,10 @@ describe('waterfall', () => {
 
 	it('Should execute all promises', async () => {
 		await waterfall(promises);
-		promises.forEach(promise => {
+		for (const promise of promises) {
 			expect(promise).to.have.been.calledOnce;
-		});
-	});
+		}
+  });
 
 	it('Should execute all promises in correct order', async () => {
 		await waterfall(promises);
@@ -64,30 +64,30 @@ describe('getProfileGuid', () => {
 	beforeEach(() => {
 		netflix = new Netflix();
 		netflixGetProfiles = sinon.stub(netflix, 'getProfiles')
-			.returns(Promise.resolve([{ firstName: '' }]));
+			.resolves([{ firstName: '' }]);
 	});
 
 	it('Should return a Promise', () => {
 		expect(getProfileGuid(netflix, '')).to.be.instanceOf(Promise);
 	});
 
-	it('Should resolve promise with correct profile', () => {
-		netflixGetProfiles.returns(Promise.resolve(profiles));
+	it('Should resolve promise with correct profile', async () => {
+		netflixGetProfiles.resolves(profiles);
 
-		profiles.forEach(profile => {
+		for (const profile of profiles) {
 			const result = getProfileGuid(netflix, profile.firstName);
 
-			expect(result).to.be.fulfilled;
-			expect(result).to.become(profile);
-		});
-	});
+			await expect(result).to.eventually.be.fulfilled;
+			await expect(result).to.eventually.become(profile);
+		}
+  });
 
-	it('Should reject promise when no matching profile is found', () => {
-		netflixGetProfiles.returns(Promise.resolve(profiles));
+	it('Should reject promise when no matching profile is found', async () => {
+		netflixGetProfiles.resolves(profiles);
 
 		const result = getProfileGuid(netflix, 'Non-existent name');
 
-		expect(result).to.be.rejected;
+		await expect(result).to.eventually.be.rejected;
 	});
 });
 
@@ -99,7 +99,7 @@ describe('switchProfile', () => {
 	beforeEach(() => {
 		netflix = new Netflix();
 		netflixSwitchProfile = sinon.stub(netflix, 'switchProfile')
-			.returns(Promise.resolve(result));
+			.resolves(result);
 	});
 
 	it('Should return a promise', () => {
@@ -145,7 +145,7 @@ describe('getRatingHistory', () => {
 	beforeEach(() => {
 		netflix = new Netflix();
 		netflixGetRatingHistory = sinon.stub(netflix, 'getRatingHistory')
-			.returns(Promise.resolve(ratings));
+			.resolves(ratings);
 		processStdoutWrite = sinon.stub(process.stdout, 'write');
 		fsWriteFileSync = sinon.stub(fs, 'writeFileSync');
 	});
@@ -219,7 +219,7 @@ describe('setRatingHistory', () => {
 	beforeEach(() => {
 		netflix = new Netflix();
 		netflixSetVideoRating = sinon.stub(netflix, 'setVideoRating')
-			.returns(Promise.resolve());
+			.resolves();
 		processStdinRead = sinon.stub(process.stdin, 'read')
 			.returns(ratingsJSON);
 		fsReadFileSync = sinon.stub(fs, 'readFileSync')
@@ -261,32 +261,45 @@ describe('setRatingHistory', () => {
 		await setRatingHistory(netflix);
 		expect(netflixSetVideoRating).to.have.callCount(ratings.length);
 
-		ratings.forEach(rating => {
+		for (const rating of ratings) {
 			expect(netflixSetVideoRating).to.have.been.calledWithExactly(rating.movieID, rating.yourRating);
-		});
-	});
+		}
+  });
+  
+  it('Should call main.waterfall once with an array of functions that return promises', async () => {
+    const waterfallStub = sinon.stub(main, 'waterfall').resolves();
+    
+    await setRatingHistory(netflix);
+    
+    expect(waterfallStub).to.have.been.calledOnce;
+    const functions = waterfallStub.args[0][0];
+    expect(functions).to.have.lengthOf(ratings.length);
+    
+    for (const func of functions) {
+      expect(func).to.be.instanceOf(Function);
+      expect(func()).to.be.instanceOf(Promise);
+    }
+    
+    waterfallStub.restore();
+  });
 
 	it('Should call main.waterfall once with an array of functions', async () => {
-		const waterfallStub = sinon.stub(main, 'waterfall').returns(Promise.resolve());
+		const waterfallStub = sinon.stub(main, 'waterfall').resolves();
 
 		await setRatingHistory(netflix);
 
 		expect(waterfallStub).to.have.been.calledOnce;
 		const functions = waterfallStub.args[0][0];
-		expect(functions).to.have.lengthOf(ratings.length);
 
-		functions.forEach(func => {
-			expect(func).to.be.instanceOf(Function);
-			expect(func()).to.be.instanceOf(Promise);
+		for (const func of functions) {
+			netflixSetVideoRating.resolves();
+			await expect(func()).to.eventually.be.fulfilled;
 
-			netflixSetVideoRating.returns(Promise.resolve());
-			expect(func()).to.eventually.be.fulfilled;
-
-			netflixSetVideoRating.returns(Promise.reject());
-			expect(func()).to.eventually.be.rejected;
-		});
-
-		waterfallStub.restore();
+			netflixSetVideoRating.rejects(new Error());
+			await expect(func()).to.eventually.be.rejected;
+		}
+    
+    waterfallStub.restore();
 	});
 
 	it('Should call netflix.setVideoRating in correct order', async () => {
@@ -310,21 +323,21 @@ describe('main', () => {
 		args = {};
 
 		netflixLogin = sinon.stub(netflix, 'login')
-			.returns(Promise.resolve());
+			.resolves();
 
 		mainExitWithMessage = sinon.stub(main, 'exitWithMessage');
 
 		mainGetProfileGuid = sinon.stub(main, 'getProfileGuid')
-			.returns(Promise.resolve(profile));
+			.resolves(profile);
 
 		mainSwitchProfile = sinon.stub(main, 'switchProfile')
-			.returns(Promise.resolve());
+			.resolves();
 
 		mainGetRatingHistory = sinon.stub(main, 'getRatingHistory')
-			.returns(Promise.resolve());
+			.resolves();
 
 		mainSetRatingHistory = sinon.stub(main, 'setRatingHistory')
-			.returns(Promise.resolve());
+			.resolves();
 
 		stubs = [
 			netflixLogin, mainExitWithMessage, mainGetProfileGuid, mainSwitchProfile,
@@ -381,6 +394,7 @@ describe('main', () => {
 		it('if args.shouldExport is true', async () => {
 			await main(args, netflix);
 			expect(mainGetRatingHistory).to.have.been.calledOnce;
+			expect(mainSetRatingHistory).to.not.have.been.called;
 		});
 
 		it('with an undefined filename if args.export is true', async () => {
@@ -416,6 +430,7 @@ describe('main', () => {
 		it('if args.shouldExport is false', async () => {
 			await main(args, netflix);
 			expect(mainSetRatingHistory).to.have.been.calledOnce;
+			expect(mainGetRatingHistory).to.not.have.been.called;
 		});
 
 		it('with an undefined filename if args.import is true', async () => {
@@ -439,7 +454,7 @@ describe('main', () => {
 	describe('Should call main.exitWithMessage immediately when an error is thrown', () => {
 		it('by netflix.login', async () => {
 			const err = new Error();
-			netflix.login.returns(Promise.reject(err));
+			netflix.login.rejects(err);
 			await main(args, netflix);
 			expect(mainExitWithMessage).to.have.been.calledOnceWithExactly(err);
 		});
@@ -459,7 +474,7 @@ describe('main', () => {
 			it(`by ${func.name}`, async () => {
 				const err = new Error();
 				const parts = func.name.split('.');
-				func.parent[parts[1]].returns(Promise.reject(err));
+				func.parent[parts[1]].rejects(err);
 				await main(func.args, netflix);
 				expect(mainExitWithMessage).to.have.been.calledOnce;
 				expect(mainExitWithMessage).to.have.been.calledOnceWithExactly(err);
