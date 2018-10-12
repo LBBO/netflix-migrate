@@ -7,9 +7,44 @@ chai.use(chaiAsPromised);
 chai.use(sinonChai);
 
 const main = require('./main');
-const { waterfall, getProfileGuid, switchProfile, getRatingHistory, setRatingHistory } = main;
+const { waterfall, getProfileGuid, switchProfile, getRatingHistory, setRatingHistory, exitWithMessage } = main;
 const Netflix = require('netflix2');
 const fs = require('fs');
+
+describe('exitWithMessage', () => {
+	let processExit, consoleError;
+	
+	beforeEach(() => {
+		processExit = sinon.stub(process, 'exit');
+		consoleError = sinon.stub(console, 'error');
+	});
+	
+	afterEach(() => {
+		processExit.restore();
+		consoleError.restore();
+	});
+	
+	it('Should should print the provided error to the console via console.error', () => {
+		const message = 'bla bla';
+		exitWithMessage(message);
+		
+		expect(consoleError).to.have.been.calledOnceWithExactly(message);
+	});
+	
+	it('Should should exit the process with exit code 1', () => {
+		const message = 'bla bla';
+		exitWithMessage(message);
+		
+		expect(processExit).to.have.been.calledOnceWithExactly(1);
+	});
+	
+	it('Should should exit the process after printing the message to the console', () => {
+		const message = 'bla bla';
+		exitWithMessage(message);
+		
+		expect(processExit).to.have.been.calledImmediatelyAfter(consoleError);
+	});
+});
 
 describe('waterfall', () => {
 	let promises = [];
@@ -59,7 +94,7 @@ describe('getProfileGuid', () => {
 		{ firstName: 'Marcel' },
 		{ firstName: '1234567890' },
 		{ firstName: 'What\'s wrong with you?' }
-	]
+	];
 
 	beforeEach(() => {
 		netflix = new Netflix();
