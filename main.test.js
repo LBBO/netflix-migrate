@@ -84,16 +84,16 @@ describe('getProfileGuid', () => {
 	let netflixGetProfiles;
 	let netflix;
 	const profiles = [
-		{ firstName: 'Michael' },
-		{ firstName: 'Klaus' },
-		{ firstName: 'Carsten' },
-		{ firstName: 'Yannic' },
-		{ firstName: 'Franziska' },
-		{ firstName: 'Anna' },
-		{ firstName: 'Hanna' },
-		{ firstName: 'Marcel' },
-		{ firstName: '1234567890' },
-		{ firstName: 'What\'s wrong with you?' }
+		{ firstName: 'Michael', guid: '0' },
+		{ firstName: 'Klaus', guid: '1' },
+		{ firstName: 'Carsten', guid: '2' },
+		{ firstName: 'Yannic', guid: '3' },
+		{ firstName: 'Franziska', guid: '4' },
+		{ firstName: 'Anna', guid: '5' },
+		{ firstName: 'Hanna', guid: '6' },
+		{ firstName: 'Marcel', guid: '7' },
+		{ firstName: '1234567890', guid: '8' },
+		{ firstName: 'What\'s wrong with you?', guid: '9' }
 	];
 
 	beforeEach(() => {
@@ -106,14 +106,14 @@ describe('getProfileGuid', () => {
 		expect(getProfileGuid(netflix, '')).to.be.instanceOf(Promise);
 	});
 
-	it('Should resolve promise with correct profile', async () => {
+	it('Should resolve promise with correct profile guid', async () => {
 		netflixGetProfiles.resolves(profiles);
 
 		for (const profile of profiles) {
 			const result = getProfileGuid(netflix, profile.firstName);
 
 			await expect(result).to.eventually.be.fulfilled;
-			await expect(result).to.eventually.become(profile);
+			await expect(result).to.eventually.become(profile.guid);
 		}
   });
 

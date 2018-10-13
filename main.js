@@ -19,7 +19,7 @@ const sleep = util.promisify(setTimeout);
 /**
  * Logs into specified Netflix account and profile and performs action
  * specified by program.export
- * @param {{email: String, password: String, profile: String, export: String | Boolean, import: String | Boolean, shouldExport: Boolean, spaces: Number | Null}} args 
+ * @param {{email: String, password: String, profile: String, export: String | Boolean, import: String | Boolean, shouldExport: Boolean, spaces: Number | Null}} args
  */
 async function main(args, netflix = new Netflix()) {
   try {
@@ -45,7 +45,7 @@ async function main(args, netflix = new Netflix()) {
 
 /**
  * Prints error message to console and exits the process
- * @param {String | Error} message 
+ * @param {String | Error} message
  */
 main.exitWithMessage = function(message) {
   console.error(message);
@@ -64,8 +64,8 @@ main.waterfall = async function(promises) {
 
 /**
  * Gets profile guid from profile name
- * @param {netflix2} netflix 
- * @param {String} profileName 
+ * @param {netflix2} netflix
+ * @param {String} profileName
  * @returns {Promise} Promise that is resolved with guid once fetched
  */
 main.getProfileGuid = async function(netflix, profileName) {
@@ -75,7 +75,7 @@ main.getProfileGuid = async function(netflix, profileName) {
   if (profileWithCorrectName === undefined) {
     throw new Error(`No profile with name "${profileName}"`);
   } else {
-    return profileWithCorrectName;
+    return profileWithCorrectName.guid;
   }
 }
 
