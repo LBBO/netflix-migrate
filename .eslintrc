@@ -1,16 +1,6 @@
 {
   "extends": "standard",
   "env": {
-    "node": true,
-    "mocha": true
-  },
-  "rules": {
-    "space-before-function-paren": 0,
-    "no-trailing-spaces": "off",
-    "semi": "off",
-    "indent": "off"
-  },
-  "parserOptions": {
-    "ecmaVersion": 2017
+    "node": true
   }
 }
