@@ -18,7 +18,7 @@
     "netflix-migrate": "./index.js"
   },
   "scripts": {
-    "test": "nyc --reporter=text --check-coverage --lines 100 mocha main.test.js",
+    "test": "nyc --reporter=text --check-coverage mocha main.test.js",
     "test-without-coverage": "mocha main.test.js"
   },
   "dependencies": {
