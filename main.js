@@ -14,19 +14,22 @@ Netflix.prototype.getProfiles = util.promisify(Netflix.prototype.getProfiles);
 Netflix.prototype.switchProfile = util.promisify(Netflix.prototype.switchProfile);
 Netflix.prototype.getRatingHistory = util.promisify(Netflix.prototype.getRatingHistory);
 Netflix.prototype.setVideoRating = util.promisify(Netflix.prototype.setVideoRating);
+// Netflix.prototype.setThumbRating = util.promisify(Netflix.prototype.setThumbRating);
 const sleep = util.promisify(setTimeout);
 
 /**
  * Logs into specified Netflix account and profile and performs action
  * specified by program.export
- * @param {{email: String, password: String, profile: String, export: String | Boolean, import: String | Boolean, shouldExport: Boolean, spaces: Number | Null}} args
+ * @param {{email: String, password: String, profile: String, export: String | Boolean, import: String | Boolean,
+ *     shouldExport: Boolean, spaces: Number | Null}} args
+ * @param netflix {Netflix}
  */
 async function main(args, netflix = new Netflix()) {
   try {
     await netflix.login({
-      email: args.email,
-      password: args.password
-    });
+                          email: args.email,
+                          password: args.password
+                        });
 
     const profileGuid = await main.getProfileGuid(netflix, args.profile);
     await main.switchProfile(netflix, profileGuid);
@@ -50,7 +53,7 @@ async function main(args, netflix = new Netflix()) {
 main.exitWithMessage = function(message) {
   console.error(message);
   process.exit(1);
-}
+};
 
 /**
  * Executes an array of promises, one after another and returns a promise
@@ -60,16 +63,25 @@ main.exitWithMessage = function(message) {
  */
 main.waterfall = async function(promises) {
   return promises.reduce((promiseChain, currPromise) => promiseChain.then(currPromise), Promise.resolve());
-}
+};
 
 /**
  * Gets profile guid from profile name
- * @param {netflix2} netflix
+ * @param {Netflix} netflix
  * @param {String} profileName
  * @returns {Promise} Promise that is resolved with guid once fetched
  */
 main.getProfileGuid = async function(netflix, profileName) {
-  const profiles = await netflix.getProfiles();
+  let profiles;
+  
+  try {
+    profiles = await netflix.getProfiles();
+  } catch (e) {
+    console.error(e);
+    throw new Error('Profile GUID could not be determined. For more information, please see previous log' +
+                      'statements.');
+  }
+  
   const profileWithCorrectName = profiles.find(profile => profile.firstName === profileName);
 
   if (profileWithCorrectName === undefined) {
@@ -77,44 +89,57 @@ main.getProfileGuid = async function(netflix, profileName) {
   } else {
     return profileWithCorrectName.guid;
   }
-}
+};
 
 /**
  * Switches to profile specified by guid
- * @param {netflix2} netflix
+ * @param {Netflix} netflix
  * @param {*} guid
  * @returns {Promise} Promise that is resolved once profile is switched
  */
 main.switchProfile = async function(netflix, guid) {
-  return netflix.switchProfile(guid);
-}
+  try {
+    return netflix.switchProfile(guid);
+  } catch (e) {
+    console.error(e);
+    throw new Error('Could not switch profiles. For more information, please see previous log statements.');
+  }
+};
 
 /**
  * Gets rating history from current profile and prints it
  * to console or specified file
- * @param {netflix2} netflix
- * @param {String} [filename]
+ * @param {Netflix} netflix
+ * @param {String} [fileName]
  * @param {Number | Null} spaces
  * @returns {Promise} Promise that is resolved once rating history has been fetched
  * @todo make pure by extracting spaces into parameter
  */
 main.getRatingHistory = async function(netflix, fileName, spaces) {
-  const ratings = await netflix.getRatingHistory();
-  const jsonRatings = JSON.stringify(ratings, null, spaces);
+  let ratings;
   
+  try {
+    ratings = await netflix.getRatingHistory();
+  } catch (e) {
+    console.error(e);
+    throw new Error('Could not retrieve rating history. For more information, please see previous log statements.');
+  }
+  
+  const jsonRatings = JSON.stringify(ratings, null, spaces);
+
   if (fileName === undefined) {
     process.stdout.write(jsonRatings);
   } else {
     fs.writeFileSync(fileName, jsonRatings);
   }
-}
+};
 
 /**
  * Reads rating history from specified medium and writes it into
  * current netflix profile. A 100 millisecond timeout is added after
  * each written rating in order to not annoy Netflix, so this may
  * take a while.
- * @param {netflix2} netflix
+ * @param {Netflix} netflix
  * @param {String} [filename]
  * @returns {Promise} Promise that is resolved after setting the last rating
  */
@@ -130,10 +155,19 @@ main.setRatingHistory = async function(netflix, filename) {
   var ratings = JSON.parse(jsonRatings);
 
   return main.waterfall(ratings.map(rating => async () => {
-    await netflix.setVideoRating(rating.movieID, rating.yourRating);
+    try {
+      if (rating.ratingType === 'thumb') {
+        await netflix.setThumbRating(rating.movieID, rating.yourRating);
+      } else {
+        await netflix.setVideoRating(rating.movieID, rating.yourRating);
+      }
+    } catch (e) {
+      console.error(e);
+      throw new Error('Could not set rating for ' + rating.name + '. For more information, please see ' +
+                        'previous log statements.');
+    }
     await sleep(100);
-    return;
   }));
-}
+};
 
 module.exports = main;
