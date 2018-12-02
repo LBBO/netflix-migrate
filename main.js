@@ -156,11 +156,11 @@ main.setRatingHistory = async function(netflix, filename) {
 
   return main.waterfall(ratings.map(rating => async () => {
     try {
-      if (rating.ratingType === 'thumb') {
-        await netflix.setThumbRating(rating.movieID, rating.yourRating);
-      } else {
+      //if (rating.ratingType === 'thumb') {
+      //  await netflix.setThumbRating(rating.movieID, rating.yourRating);
+      //} else {
         await netflix.setVideoRating(rating.movieID, rating.yourRating);
-      }
+      //}
     } catch (e) {
       console.error(e);
       throw new Error('Could not set rating for ' + rating.name + '. For more information, please see ' +
