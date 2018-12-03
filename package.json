@@ -1,6 +1,6 @@
 {
   "name": "netflix-migrate",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A command-line tool to migrate data to and from Netflix profiles",
   "keywords": [
     "netflix",
