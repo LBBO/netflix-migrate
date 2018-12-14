@@ -13,8 +13,8 @@ Netflix.prototype.login = util.promisify(Netflix.prototype.login);
 Netflix.prototype.getProfiles = util.promisify(Netflix.prototype.getProfiles);
 Netflix.prototype.switchProfile = util.promisify(Netflix.prototype.switchProfile);
 Netflix.prototype.getRatingHistory = util.promisify(Netflix.prototype.getRatingHistory);
-Netflix.prototype.setVideoRating = util.promisify(Netflix.prototype.setVideoRating);
-// Netflix.prototype.setThumbRating = util.promisify(Netflix.prototype.setThumbRating);
+Netflix.prototype.setStarRating = util.promisify(Netflix.prototype.setStarRating);
+Netflix.prototype.setThumbRating = util.promisify(Netflix.prototype.setThumbRating);
 const sleep = util.promisify(setTimeout);
 
 /**
@@ -144,7 +144,7 @@ main.getRatingHistory = async function(netflix, fileName, spaces) {
  * @returns {Promise} Promise that is resolved after setting the last rating
  */
 main.setRatingHistory = async function(netflix, filename) {
-  var jsonRatings;
+  let jsonRatings;
 
   if (filename === undefined) {
     jsonRatings = process.stdin.read();
@@ -152,15 +152,15 @@ main.setRatingHistory = async function(netflix, filename) {
     jsonRatings = fs.readFileSync(filename);
   }
 
-  var ratings = JSON.parse(jsonRatings);
+  let ratings = JSON.parse(jsonRatings);
 
   return main.waterfall(ratings.map(rating => async () => {
     try {
-      //if (rating.ratingType === 'thumb') {
-      //  await netflix.setThumbRating(rating.movieID, rating.yourRating);
-      //} else {
-        await netflix.setVideoRating(rating.movieID, rating.yourRating);
-      //}
+      if (rating.ratingType === 'thumb') {
+        await netflix.setThumbRating(rating.movieID, rating.yourRating);
+      } else {
+        await netflix.setStarRating(rating.movieID, rating.yourRating);
+      }
     } catch (e) {
       console.error(e);
       throw new Error('Could not set rating for ' + rating.name + '. For more information, please see ' +
