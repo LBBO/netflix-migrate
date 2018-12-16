@@ -83,7 +83,7 @@ describe('waterfall', () => {
 });
 
 describe('getProfileGuid', () => {
-	let netflixGetProfiles;
+	let netflixGetProfiles, consoleError;
 	let netflix;
 	const profiles = [
 		{firstName: 'Michael', guid: '0'},
@@ -102,6 +102,12 @@ describe('getProfileGuid', () => {
 		netflix = new Netflix();
 		netflixGetProfiles = sinon.stub(netflix, 'getProfiles')
 			.resolves([{firstName: ''}]);
+		consoleError = sinon.stub(console, 'error');
+	});
+	
+	afterEach(() => {
+		netflixGetProfiles.restore();
+		consoleError.restore();
 	});
 	
 	it('Should return a Promise', () => {
@@ -126,10 +132,30 @@ describe('getProfileGuid', () => {
 		
 		await expect(result).to.eventually.be.rejected;
 	});
+	
+	it('Should log any error thrown by netflix.getProfiles', async () => {
+		const error = new Error('Error thrown by test');
+		netflixGetProfiles.rejects(error);
+		
+		try {
+			await getProfileGuid(netflix, '');
+		} catch (e) {
+		
+		} finally {
+			expect(consoleError).to.have.been.calledOnce;
+			expect(consoleError).to.have.been.calledWithExactly(error);
+		}
+	});
+	
+	it('Should throw an error when netflix.getProfiles throws an error', async () => {
+		netflixGetProfiles.rejects(new Error());
+		
+		await expect(getProfileGuid(netflix, '')).to.eventually.be.rejected;
+	});
 });
 
 describe('switchProfile', () => {
-	let netflix, netflixSwitchProfile;
+	let netflix, netflixSwitchProfile, consoleError;
 	const guid = {foo: 'bar'};
 	const result = {so: 'amazing'};
 	
@@ -137,6 +163,12 @@ describe('switchProfile', () => {
 		netflix = new Netflix();
 		netflixSwitchProfile = sinon.stub(netflix, 'switchProfile')
 			.resolves(result);
+		consoleError = sinon.stub(console, 'error');
+	});
+	
+	afterEach(() => {
+		netflixSwitchProfile.restore();
+		consoleError.restore();
 	});
 	
 	it('Should return a promise', () => {
@@ -148,10 +180,30 @@ describe('switchProfile', () => {
 		expect(netflixSwitchProfile).to.have.been.calledWithExactly(guid);
 		expect(res).to.deep.equal(result);
 	});
+	
+	it('Should log any error thrown by netflix.switchProfile', async () => {
+		const error = new Error('Error thrown by test');
+		netflixSwitchProfile.rejects(error);
+		
+		try {
+			await switchProfile(netflix, guid);
+		} catch (e) {
+		
+		} finally {
+			expect(consoleError).to.have.been.calledOnce;
+			expect(consoleError).to.have.been.calledWithExactly(error);
+		}
+	});
+	
+	it('Should throw an error when netflix.switchProfile throws an error', async () => {
+		netflixSwitchProfile.rejects(new Error());
+		
+		await expect(switchProfile(netflix, guid)).to.eventually.be.rejected;
+	});
 });
 
 describe('getRatingHistory', () => {
-	let netflix, netflixGetRatingHistory, processStdoutWrite, fsWriteFileSync;
+	let netflix, netflixGetRatingHistory, processStdoutWrite, fsWriteFileSync, consoleError;
 	const filename = 'test.json';
 	const ratings = [
 		{
@@ -183,6 +235,7 @@ describe('getRatingHistory', () => {
 		netflix = new Netflix();
 		netflixGetRatingHistory = sinon.stub(netflix, 'getRatingHistory')
 			.resolves(ratings);
+		consoleError = sinon.stub(console, 'error');
 		processStdoutWrite = sinon.stub(process.stdout, 'write');
 		fsWriteFileSync = sinon.stub(fs, 'writeFileSync');
 	});
@@ -191,6 +244,7 @@ describe('getRatingHistory', () => {
 		netflixGetRatingHistory.restore();
 		processStdoutWrite.restore();
 		fsWriteFileSync.restore();
+		consoleError.restore();
 	});
 	
 	it('Should return a promise', () => {
@@ -223,10 +277,30 @@ describe('getRatingHistory', () => {
 		await getRatingHistory(netflix, filename, 4);
 		expect(fsWriteFileSync).to.have.been.calledOnceWith(filename, ratingsJSONWith4Spaces);
 	});
+	
+	it('Should log any error thrown by netflix.switchProfile', async () => {
+		const error = new Error('Error thrown by test');
+		netflixGetRatingHistory.rejects(error);
+		
+		try {
+			await getRatingHistory(netflix, filename, 4);
+		} catch (e) {
+		
+		} finally {
+			expect(consoleError).to.have.been.calledOnce;
+			expect(consoleError).to.have.been.calledWithExactly(error);
+		}
+	});
+	
+	it('Should throw an error when netflix.switchProfile throws an error', async () => {
+		netflixGetRatingHistory.rejects(new Error());
+		
+		await expect(getRatingHistory(netflix, filename, 4)).to.eventually.be.rejected;
+	});
 });
 
 describe('setRatingHistory', () => {
-	let netflix, netflixSetStarRating, netflixSetThumbRating, processStdinRead, fsReadFileSync;
+	let netflix, netflixSetStarRating, netflixSetThumbRating, processStdinRead, fsReadFileSync, consoleError;
 	const filename = 'test.json';
 	const ratings = [
 		{
@@ -265,6 +339,8 @@ describe('setRatingHistory', () => {
 			.returns(ratingsJSON);
 		fsReadFileSync = sinon.stub(fs, 'readFileSync')
 			.returns(ratingsJSON);
+		
+		consoleError = sinon.stub(console, 'error');
 	});
 	
 	afterEach(() => {
@@ -272,6 +348,7 @@ describe('setRatingHistory', () => {
 		netflixSetThumbRating.restore();
 		processStdinRead.restore();
 		fsReadFileSync.restore();
+		consoleError.restore();
 	});
 	
 	it('Should return a promise', () => {

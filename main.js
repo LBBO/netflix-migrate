@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 'use strict';
 
-require('array.prototype.find').shim();
 const fs = require('fs');
 const Netflix = require('netflix2');
 const util = require('util');
@@ -99,7 +98,7 @@ main.getProfileGuid = async function(netflix, profileName) {
  */
 main.switchProfile = async function(netflix, guid) {
   try {
-    return netflix.switchProfile(guid);
+    return await netflix.switchProfile(guid);
   } catch (e) {
     console.error(e);
     throw new Error('Could not switch profiles. For more information, please see previous log statements.');
