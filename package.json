@@ -1,6 +1,6 @@
 {
   "name": "netflix-migrate",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "A command-line tool to migrate data to and from Netflix profiles",
   "keywords": [
     "netflix",
@@ -18,14 +18,14 @@
     "netflix-migrate": "./index.js"
   },
   "scripts": {
-    "test": "nyc --reporter=text --check-coverage mocha main.test.js",
+    "test": "nyc --reporter=text --check-coverage --lines 100 mocha main.test.js",
     "test-without-coverage": "mocha main.test.js"
   },
   "dependencies": {
     "array.prototype.find": "^2.0.0",
     "async": "^2.0.0-rc.5",
     "commander": "^2.9.0",
-    "netflix2": "0.0.8",
+    "netflix2": "0.1.1",
     "prompt": "^1.0.0"
   },
   "devDependencies": {
