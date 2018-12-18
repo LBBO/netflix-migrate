@@ -35,7 +35,8 @@ async function main(args, netflix = new Netflix()) {
 
     if (args.shouldExport) {
       const filename = args.export === true ? undefined : args.export;
-      await main.getRatingHistory(netflix, filename, args.spaces);
+      const ratingHistory = await main.getRatingHistory(netflix);
+      main.writeToChosenOutput(ratingHistory, filename, args.spaces);
     } else {
       const filename = args.import === true ? undefined : args.import;
       await main.setRatingHistory(netflix, filename);
@@ -109,27 +110,34 @@ main.switchProfile = async function(netflix, guid) {
  * Gets rating history from current profile and prints it
  * to console or specified file
  * @param {Netflix} netflix
- * @param {String} [fileName]
- * @param {Number | Null} spaces
- * @returns {Promise} Promise that is resolved once rating history has been fetched
- * @todo make pure by extracting spaces into parameter
+ * @returns {Promise} Promise that is resolved with rating history once it has been fetched
  */
-main.getRatingHistory = async function(netflix, fileName, spaces) {
+main.getRatingHistory = async function(netflix) {
   let ratings;
   
   try {
     ratings = await netflix.getRatingHistory();
+    return ratings;
   } catch (e) {
     console.error(e);
     throw new Error('Could not retrieve rating history. For more information, please see previous log statements.');
   }
-  
-  const jsonRatings = JSON.stringify(ratings, null, spaces);
+};
+
+/**
+ * Writes a natove Object's JSON representation either to a file, if the file name
+ * is specified, or to process.stdout
+ * @param {Object} data
+ * @param {String} [fileName]
+ * @param {Number | String} [numberOfSpaces]
+ */
+main.writeToChosenOutput = (data, fileName, numberOfSpaces) => {
+  const dataJson = JSON.stringify(data, null, numberOfSpaces);
 
   if (fileName === undefined) {
-    process.stdout.write(jsonRatings);
+    process.stdout.write(dataJson);
   } else {
-    fs.writeFileSync(fileName, jsonRatings);
+    fs.writeFileSync(fileName, dataJson);
   }
 };
 

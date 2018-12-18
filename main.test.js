@@ -7,7 +7,7 @@ chai.use(chaiAsPromised);
 chai.use(sinonChai);
 
 const main = require('./main');
-const {waterfall, getProfileGuid, switchProfile, getRatingHistory, setRatingHistory, exitWithMessage} = main;
+const {waterfall, getProfileGuid, switchProfile, getRatingHistory, setRatingHistory, exitWithMessage, writeToChosenOutput} = main;
 const Netflix = require('netflix2');
 const fs = require('fs');
 
@@ -202,9 +202,97 @@ describe('switchProfile', () => {
 	});
 });
 
-describe('getRatingHistory', () => {
-	let netflix, netflixGetRatingHistory, processStdoutWrite, fsWriteFileSync, consoleError;
+describe('writeToChosenOutput', () => {
+	let fsWriteFileSync, processStdoutWrite, jsonStringify;
+	
+	const data = [
+		{
+			'ratingType': 'star',
+			'title': 'Some movie',
+			'movieID': 12345678,
+			'yourRating': 5,
+			'intRating': 50,
+			'date': '01/02/2016',
+			'timestamp': 1234567890123,
+			'comparableDate': 1234567890
+		},
+		{
+			'ratingType': 'thumb',
+			'title': 'Amazing Show',
+			'movieID': 87654321,
+			'yourRating': 2,
+			'date': '02/02/2018',
+			'timestamp': 2234567890123,
+			'comparableDate': 2234567890
+		}
+	];
+
+	// JSON representations are hard coded into this test in order to notice when JSON.stringify changes
+	const dataJSON = '[{"ratingType":"star","title":"Some movie","movieID":12345678,"yourRating":5,"intRating":50,"date":"01/02/2016","timestamp":1234567890123,"comparableDate":1234567890},{"ratingType":"thumb","title":"Amazing Show","movieID":87654321,"yourRating":2,"date":"02/02/2018","timestamp":2234567890123,"comparableDate":2234567890}]';
+	const dataJSONWith4Spaces = '[\n    {\n        "ratingType": "star",\n        "title": "Some movie",\n        "movieID": 12345678,\n        "yourRating": 5,\n        "intRating": 50,\n        "date": "01/02/2016",\n        "timestamp": 1234567890123,\n        "comparableDate": 1234567890\n    },\n    {\n        "ratingType": "thumb",\n        "title": "Amazing Show",\n        "movieID": 87654321,\n        "yourRating": 2,\n        "date": "02/02/2018",\n        "timestamp": 2234567890123,\n        "comparableDate": 2234567890\n    }\n]';
+	const dataJSONWith3Spaces = '[\n   {\n      "ratingType": "star",\n      "title": "Some movie",\n      "movieID": 12345678,\n      "yourRating": 5,\n      "intRating": 50,\n      "date": "01/02/2016",\n      "timestamp": 1234567890123,\n      "comparableDate": 1234567890\n   },\n   {\n      "ratingType": "thumb",\n      "title": "Amazing Show",\n      "movieID": 87654321,\n      "yourRating": 2,\n      "date": "02/02/2018",\n      "timestamp": 2234567890123,\n      "comparableDate": 2234567890\n   }\n]';
+
 	const filename = 'test.json';
+	const numberOfSpaces = 3;
+
+	beforeEach(() => {
+		processStdoutWrite = sinon.stub(process.stdout, 'write');
+		fsWriteFileSync = sinon.stub(fs, 'writeFileSync');
+		jsonStringify = sinon.stub(JSON, 'stringify').callThrough();
+	});
+
+	afterEach(() => {
+		processStdoutWrite.restore();
+		fsWriteFileSync.restore();
+		jsonStringify.restore();
+	});
+
+	it('Should call JSON.stringify to convert data to JSON', () => {
+		writeToChosenOutput(data);
+		expect(jsonStringify).to.have.been.calledOnce;
+		expect(jsonStringify).to.have.been.calledWithExactly(data, null, undefined);
+	});
+
+	it('Should pass spaces along, if specified', () => {
+		writeToChosenOutput(data, undefined, numberOfSpaces);
+		expect(jsonStringify).to.have.been.calledWithExactly(data, null, numberOfSpaces);
+	})
+
+	it('Should only print to process.stdout when filename is not specified', () => {
+		writeToChosenOutput(data, undefined);
+		expect(processStdoutWrite).to.have.been.calledOnce;
+		expect(fsWriteFileSync).to.not.have.been.called;
+	});
+	
+	it('Should only print to file when filename is specified', async () => {
+		writeToChosenOutput(data, filename);
+		expect(fsWriteFileSync).to.have.been.calledOnce;
+		expect(processStdoutWrite).to.not.have.been.called;
+	});
+	
+	it('Should print correct JSON to process.stdout', async () => {
+		writeToChosenOutput(data, undefined, null);
+		expect(processStdoutWrite).to.have.been.calledWithExactly(dataJSON);
+	});
+	
+	it('Should print correct JSON to file', async () => {
+		writeToChosenOutput(data, filename, null);
+		expect(fsWriteFileSync).to.have.been.calledOnceWith(filename, dataJSON);
+	});
+	
+	it('Should print correct JSON when spaces is set to 4', async () => {
+		writeToChosenOutput(data, filename, 4);
+		expect(fsWriteFileSync).to.have.been.calledOnceWith(filename, dataJSONWith4Spaces);
+	});
+	
+	it('Should print correct JSON when spaces is set to 3', async () => {
+		writeToChosenOutput(data, filename, 3);
+		expect(fsWriteFileSync).to.have.been.calledOnceWith(filename, dataJSONWith3Spaces);
+	});
+});
+
+describe('getRatingHistory', () => {
+	let netflix, netflixGetRatingHistory, consoleError;
 	const ratings = [
 		{
 			'ratingType': 'star',
@@ -227,55 +315,31 @@ describe('getRatingHistory', () => {
 		}
 	];
 	
-	// JSON representations are hard coded into this test in order to notice when JSON.stringify changes
-	const ratingsJSON = '[{"ratingType":"star","title":"Some movie","movieID":12345678,"yourRating":5,"intRating":50,"date":"01/02/2016","timestamp":1234567890123,"comparableDate":1234567890},{"ratingType":"thumb","title":"Amazing Show","movieID":87654321,"yourRating":2,"date":"02/02/2018","timestamp":2234567890123,"comparableDate":2234567890}]';
-	const ratingsJSONWith4Spaces = '[\n    {\n        "ratingType": "star",\n        "title": "Some movie",\n        "movieID": 12345678,\n        "yourRating": 5,\n        "intRating": 50,\n        "date": "01/02/2016",\n        "timestamp": 1234567890123,\n        "comparableDate": 1234567890\n    },\n    {\n        "ratingType": "thumb",\n        "title": "Amazing Show",\n        "movieID": 87654321,\n        "yourRating": 2,\n        "date": "02/02/2018",\n        "timestamp": 2234567890123,\n        "comparableDate": 2234567890\n    }\n]';
-	
 	beforeEach(() => {
 		netflix = new Netflix();
 		netflixGetRatingHistory = sinon.stub(netflix, 'getRatingHistory')
 			.resolves(ratings);
 		consoleError = sinon.stub(console, 'error');
-		processStdoutWrite = sinon.stub(process.stdout, 'write');
-		fsWriteFileSync = sinon.stub(fs, 'writeFileSync');
 	});
 	
 	afterEach(() => {
 		netflixGetRatingHistory.restore();
-		processStdoutWrite.restore();
-		fsWriteFileSync.restore();
 		consoleError.restore();
 	});
 	
 	it('Should return a promise', () => {
-		expect(getRatingHistory(netflix, filename, null)).to.be.instanceOf(Promise);
+		expect(getRatingHistory(netflix)).to.be.instanceOf(Promise);
 	});
-	
-	it('Should only print to process.stdout when filename is not specified', async () => {
-		await getRatingHistory(netflix, undefined, null);
-		expect(processStdoutWrite).to.have.been.calledOnce;
-		expect(fsWriteFileSync).to.not.have.been.called;
+
+	it('Should call netflix.getRatingsHistory()', async () => {
+		await getRatingHistory(netflix);
+
+		expect(netflixGetRatingHistory).to.have.been.calledOnce;
+		expect(netflixGetRatingHistory).to.have.been.calledWithExactly();
 	});
-	
-	it('Should only print to file when filename is specified', async () => {
-		await getRatingHistory(netflix, filename, null);
-		expect(fsWriteFileSync).to.have.been.calledOnce;
-		expect(processStdoutWrite).to.not.have.been.called;
-	});
-	
-	it('Should print correct JSON to process.stdout', async () => {
-		await getRatingHistory(netflix, undefined, null);
-		expect(processStdoutWrite).to.have.been.calledOnceWith(ratingsJSON);
-	});
-	
-	it('Should print correct JSON to file', async () => {
-		await getRatingHistory(netflix, filename, null);
-		expect(fsWriteFileSync).to.have.been.calledOnceWith(filename, ratingsJSON);
-	});
-	
-	it('Should print correct JSON when spaces is specified', async () => {
-		await getRatingHistory(netflix, filename, 4);
-		expect(fsWriteFileSync).to.have.been.calledOnceWith(filename, ratingsJSONWith4Spaces);
+
+	it('Should resolve with the result of netflix.getRatingHistory', async () => {
+		await expect(getRatingHistory(netflix)).to.eventually.deep.equal(ratings);
 	});
 	
 	it('Should log any error thrown by netflix.switchProfile', async () => {
@@ -283,7 +347,7 @@ describe('getRatingHistory', () => {
 		netflixGetRatingHistory.rejects(error);
 		
 		try {
-			await getRatingHistory(netflix, filename, 4);
+			await getRatingHistory(netflix);
 		} catch (e) {
 		
 		} finally {
@@ -295,7 +359,7 @@ describe('getRatingHistory', () => {
 	it('Should throw an error when netflix.switchProfile throws an error', async () => {
 		netflixGetRatingHistory.rejects(new Error());
 		
-		await expect(getRatingHistory(netflix, filename, 4)).to.eventually.be.rejected;
+		await expect(getRatingHistory(netflix)).to.eventually.be.rejected;
 	});
 });
 
@@ -455,8 +519,29 @@ describe('setRatingHistory', () => {
 
 describe('main', () => {
 	let netflix, netflixLogin, mainGetProfileGuid, mainSwitchProfile, mainGetRatingHistory,
-		mainSetRatingHistory, mainExitWithMessage, stubs, args;
+		mainSetRatingHistory, mainExitWithMessage, mainWriteToChosenOutput, stubs, args;
 	const profile = {guid: 1234567890, firstName: 'Foo'};
+	const ratings = [
+		{
+			'ratingType': 'star',
+			'title': 'Some movie',
+			'movieID': 12345678,
+			'yourRating': 5,
+			'intRating': 50,
+			'date': '01/02/2016',
+			'timestamp': 1234567890123,
+			'comparableDate': 1234567890
+		},
+		{
+			'ratingType': 'thumb',
+			'title': 'Amazing Show',
+			'movieID': 87654321,
+			'yourRating': 2,
+			'date': '02/02/2018',
+			'timestamp': 2234567890123,
+			'comparableDate': 2234567890
+		}
+	];
 	
 	beforeEach(() => {
 		netflix = new Netflix();
@@ -474,14 +559,16 @@ describe('main', () => {
 			.resolves();
 		
 		mainGetRatingHistory = sinon.stub(main, 'getRatingHistory')
-			.resolves();
+			.resolves(ratings);
 		
 		mainSetRatingHistory = sinon.stub(main, 'setRatingHistory')
 			.resolves();
 		
+		mainWriteToChosenOutput = sinon.stub(main, 'writeToChosenOutput');
+		
 		stubs = [
 			netflixLogin, mainExitWithMessage, mainGetProfileGuid, mainSwitchProfile,
-			mainGetRatingHistory, mainSetRatingHistory
+			mainGetRatingHistory, mainSetRatingHistory, mainWriteToChosenOutput
 		];
 	});
 	
@@ -537,28 +624,39 @@ describe('main', () => {
 			expect(mainSetRatingHistory).to.not.have.been.called;
 		});
 		
+		it('after main.switchProfile', async () => {
+			await main(args, netflix);
+			expect(mainGetRatingHistory).to.have.been.calledAfter(mainSwitchProfile);
+		});
+	});
+
+	describe('Should call main.writeToChosenOutput', () => {
+		beforeEach(() => {
+			args.shouldExport = true;
+		});
+		
 		it('with an undefined filename if args.export is true', async () => {
 			args.export = true;
 			await main(args, netflix);
-			expect(mainGetRatingHistory).to.have.been.calledOnceWithExactly(netflix, undefined, undefined);
+			expect(mainWriteToChosenOutput).to.have.been.calledOnceWithExactly(ratings, undefined, undefined);
 		});
 		
 		it('with filename provided in args.export', async () => {
 			args.export = {foo: 'bar'};
 			await main(args, netflix);
-			expect(mainGetRatingHistory).to.have.been.calledOnceWithExactly(netflix, args.export, undefined);
+			expect(mainWriteToChosenOutput).to.have.been.calledOnceWithExactly(ratings, args.export, undefined);
 		});
 		
 		it('with args.spaces', async () => {
 			args.export = true;
 			args.spaces = {foo: 'bar'};
 			await main(args, netflix);
-			expect(mainGetRatingHistory).to.have.been.calledOnceWithExactly(netflix, undefined, args.spaces);
+			expect(mainWriteToChosenOutput).to.have.been.calledOnceWithExactly(ratings, undefined, args.spaces);
 		});
-		
-		it('after main.switchProfile', async () => {
+
+		it('after main.getRatingHistory', async () => {
 			await main(args, netflix);
-			expect(mainGetRatingHistory).to.have.been.calledAfter(mainSwitchProfile);
+			expect(mainWriteToChosenOutput).to.have.been.calledAfter(mainGetRatingHistory);
 		});
 	});
 	
