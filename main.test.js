@@ -7,7 +7,7 @@ chai.use(chaiAsPromised);
 chai.use(sinonChai);
 
 const main = require('./main');
-const {waterfall, getProfileGuid, switchProfile, getRatingHistory, setRatingHistory, exitWithMessage, writeToChosenOutput} = main;
+const {waterfall, getProfileGuid, switchProfile, getRatingHistory, getViewingHistory, setRatingHistory, exitWithMessage, writeToChosenOutput} = main;
 const Netflix = require('netflix2');
 const fs = require('fs');
 
@@ -330,19 +330,19 @@ describe('getRatingHistory', () => {
 	it('Should return a promise', () => {
 		expect(getRatingHistory(netflix)).to.be.instanceOf(Promise);
 	});
-
+	
 	it('Should call netflix.getRatingsHistory()', async () => {
 		await getRatingHistory(netflix);
-
+		
 		expect(netflixGetRatingHistory).to.have.been.calledOnce;
 		expect(netflixGetRatingHistory).to.have.been.calledWithExactly();
 	});
-
+	
 	it('Should resolve with the result of netflix.getRatingHistory', async () => {
 		await expect(getRatingHistory(netflix)).to.eventually.deep.equal(ratings);
 	});
 	
-	it('Should log any error thrown by netflix.switchProfile', async () => {
+	it('Should log any error thrown by netflix.getRatingHistory', async () => {
 		const error = new Error('Error thrown by test');
 		netflixGetRatingHistory.rejects(error);
 		
@@ -356,10 +356,82 @@ describe('getRatingHistory', () => {
 		}
 	});
 	
-	it('Should throw an error when netflix.switchProfile throws an error', async () => {
+	it('Should throw an error when netflix.getRatingHistory throws an error', async () => {
 		netflixGetRatingHistory.rejects(new Error());
 		
 		await expect(getRatingHistory(netflix)).to.eventually.be.rejected;
+	});
+});
+
+describe('getViewingHistory', () => {
+	let netflix, netflixGetViewingHistory, consoleError;
+	const viewingHistory = [
+		{
+			'ratingType': 'star',
+			'title': 'Some movie',
+			'movieID': 12345678,
+			'yourRating': 5,
+			'intRating': 50,
+			'date': '01/02/2016',
+			'timestamp': 1234567890123,
+			'comparableDate': 1234567890
+		},
+		{
+			'ratingType': 'thumb',
+			'title': 'Amazing Show',
+			'movieID': 87654321,
+			'yourRating': 2,
+			'date': '02/02/2018',
+			'timestamp': 2234567890123,
+			'comparableDate': 2234567890
+		}
+	];
+	
+	beforeEach(() => {
+		netflix = new Netflix();
+		netflixGetViewingHistory = sinon.stub(netflix, 'getViewingHistory')
+			.resolves(viewingHistory);
+		consoleError = sinon.stub(console, 'error');
+	});
+	
+	afterEach(() => {
+		netflixGetViewingHistory.restore();
+		consoleError.restore();
+	});
+	
+	it('Should return a promise', () => {
+		expect(getViewingHistory(netflix)).to.be.instanceOf(Promise);
+	});
+
+	it('Should call netflix.getRatingsHistory()', async () => {
+		await getViewingHistory(netflix);
+
+		expect(netflixGetViewingHistory).to.have.been.calledOnce;
+		expect(netflixGetViewingHistory).to.have.been.calledWithExactly();
+	});
+
+	it('Should resolve with the result of netflix.getViewingHistory', async () => {
+		await expect(getViewingHistory(netflix)).to.eventually.deep.equal(viewingHistory);
+	});
+	
+	it('Should log any error thrown by netflix.getViewingHistory', async () => {
+		const error = new Error('Error thrown by test');
+		netflixGetViewingHistory.rejects(error);
+		
+		try {
+			await getViewingHistory(netflix);
+		} catch (e) {
+		
+		} finally {
+			expect(consoleError).to.have.been.calledOnce;
+			expect(consoleError).to.have.been.calledWithExactly(error);
+		}
+	});
+	
+	it('Should throw an error when netflix.getViewingHistory throws an error', async () => {
+		netflixGetViewingHistory.rejects(new Error());
+		
+		await expect(getViewingHistory(netflix)).to.eventually.be.rejected;
 	});
 });
 

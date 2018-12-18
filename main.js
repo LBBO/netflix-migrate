@@ -107,8 +107,7 @@ main.switchProfile = async function(netflix, guid) {
 };
 
 /**
- * Gets rating history from current profile and prints it
- * to console or specified file
+ * Gets rating history from current profile
  * @param {Netflix} netflix
  * @returns {Promise} Promise that is resolved with rating history once it has been fetched
  */
@@ -121,6 +120,23 @@ main.getRatingHistory = async function(netflix) {
   } catch (e) {
     console.error(e);
     throw new Error('Could not retrieve rating history. For more information, please see previous log statements.');
+  }
+};
+
+/**
+ * Gets viewing history from current profile
+ * @param {Netflix} netflix
+ * @returns {Promise} Promise that is resolved with viewing history once it has been fetched
+ */
+main.getViewingHistory = async function(netflix) {
+  let viewingHistory;
+  
+  try {
+    viewingHistory = await netflix.getViewingHistory();
+    return viewingHistory;
+  } catch (e) {
+    console.error(e);
+    throw new Error('Could not retrieve viewing history. For more information, please see previous log satements.')
   }
 };
 
