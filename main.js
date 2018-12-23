@@ -12,6 +12,7 @@ Netflix.prototype.login = util.promisify(Netflix.prototype.login);
 Netflix.prototype.getProfiles = util.promisify(Netflix.prototype.getProfiles);
 Netflix.prototype.switchProfile = util.promisify(Netflix.prototype.switchProfile);
 Netflix.prototype.getRatingHistory = util.promisify(Netflix.prototype.getRatingHistory);
+Netflix.prototype.getViewingHistory = util.promisify(Netflix.prototype.getViewingHistory);
 Netflix.prototype.setStarRating = util.promisify(Netflix.prototype.setStarRating);
 Netflix.prototype.setThumbRating = util.promisify(Netflix.prototype.setThumbRating);
 const sleep = util.promisify(setTimeout);
@@ -36,7 +37,12 @@ async function main(args, netflix = new Netflix()) {
     if (args.shouldExport) {
       const filename = args.export === true ? undefined : args.export;
       const ratingHistory = await main.getRatingHistory(netflix);
-      main.writeToChosenOutput(ratingHistory, filename, args.spaces);
+      const viewingHistory = await main.getViewingHistory(netflix);
+      const dataToBeSaved = {
+        ratingHistory: ratingHistory,
+        viewingHistory: viewingHistory
+      };
+      main.writeToChosenOutput(dataToBeSaved, filename, args.spaces);
     } else {
       const filename = args.import === true ? undefined : args.import;
       await main.setRatingHistory(netflix, filename);

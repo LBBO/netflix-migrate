@@ -590,7 +590,7 @@ describe('setRatingHistory', () => {
 });
 
 describe('main', () => {
-	let netflix, netflixLogin, mainGetProfileGuid, mainSwitchProfile, mainGetRatingHistory,
+	let netflix, netflixLogin, mainGetProfileGuid, mainSwitchProfile, mainGetRatingHistory, mainGetViewingHistory,
 		mainSetRatingHistory, mainExitWithMessage, mainWriteToChosenOutput, stubs, args;
 	const profile = {guid: 1234567890, firstName: 'Foo'};
 	const ratings = [
@@ -614,6 +614,7 @@ describe('main', () => {
 			'comparableDate': 2234567890
 		}
 	];
+	const views = ratings;
 	
 	beforeEach(() => {
 		netflix = new Netflix();
@@ -633,6 +634,9 @@ describe('main', () => {
 		mainGetRatingHistory = sinon.stub(main, 'getRatingHistory')
 			.resolves(ratings);
 		
+		mainGetViewingHistory = sinon.stub(main, 'getViewingHistory')
+			.resolves(views);
+		
 		mainSetRatingHistory = sinon.stub(main, 'setRatingHistory')
 			.resolves();
 		
@@ -640,7 +644,7 @@ describe('main', () => {
 		
 		stubs = [
 			netflixLogin, mainExitWithMessage, mainGetProfileGuid, mainSwitchProfile,
-			mainGetRatingHistory, mainSetRatingHistory, mainWriteToChosenOutput
+			mainGetRatingHistory, mainGetViewingHistory, mainSetRatingHistory, mainWriteToChosenOutput
 		];
 	});
 	
@@ -701,6 +705,23 @@ describe('main', () => {
 			expect(mainGetRatingHistory).to.have.been.calledAfter(mainSwitchProfile);
 		});
 	});
+	
+	describe('Should call main.getViewingHistory', () => {
+		beforeEach(() => {
+			args.shouldExport = true;
+		});
+		
+		it('if args.shouldExport is true', async () => {
+			await main(args, netflix);
+			expect(mainGetViewingHistory).to.have.been.calledOnce;
+			expect(mainSetRatingHistory).to.not.have.been.called;
+		});
+		
+		it('after main.getRatingHistory', async () => {
+			await main(args, netflix);
+			expect(mainGetViewingHistory).to.have.been.calledAfter(mainGetRatingHistory);
+		});
+	});
 
 	describe('Should call main.writeToChosenOutput', () => {
 		beforeEach(() => {
@@ -710,25 +731,41 @@ describe('main', () => {
 		it('with an undefined filename if args.export is true', async () => {
 			args.export = true;
 			await main(args, netflix);
-			expect(mainWriteToChosenOutput).to.have.been.calledOnceWithExactly(ratings, undefined, undefined);
+			expect(mainWriteToChosenOutput.getCall(0).args[1]).to.be.undefined;
 		});
 		
 		it('with filename provided in args.export', async () => {
 			args.export = {foo: 'bar'};
 			await main(args, netflix);
-			expect(mainWriteToChosenOutput).to.have.been.calledOnceWithExactly(ratings, args.export, undefined);
+			expect(mainWriteToChosenOutput.getCall(0).args[1]).to.equal(args.export);
 		});
 		
 		it('with args.spaces', async () => {
 			args.export = true;
 			args.spaces = {foo: 'bar'};
 			await main(args, netflix);
-			expect(mainWriteToChosenOutput).to.have.been.calledOnceWithExactly(ratings, undefined, args.spaces);
+			expect(mainWriteToChosenOutput.getCall(0).args[2]).to.equal(args.spaces);
 		});
 
-		it('after main.getRatingHistory', async () => {
+		it('after main.getViewingHistory', async () => {
 			await main(args, netflix);
-			expect(mainWriteToChosenOutput).to.have.been.calledAfter(mainGetRatingHistory);
+			expect(mainWriteToChosenOutput).to.have.been.calledAfter(mainGetViewingHistory);
+		});
+		
+		it('with an object containing a viewingHistory and a ratingHistory', async () => {
+			await main(args, netflix);
+			const firstCallArg = mainWriteToChosenOutput.getCall(0).args[0];
+			expect(firstCallArg).to.be.instanceOf(Object);
+			expect(firstCallArg).to.haveOwnProperty('viewingHistory');
+			expect(firstCallArg).to.haveOwnProperty('ratingHistory');
+		});
+		
+		it('with an object containing the results of main.getRatingHistory and main.getViewingHistory', async () => {
+			await main(args, netflix);
+			const firstCallArg = mainWriteToChosenOutput.getCall(0).args[0];
+			expect(firstCallArg).to.be.instanceOf(Object);
+			expect(firstCallArg.ratingHistory).to.deep.equal(ratings);
+			expect(firstCallArg.viewingHistory).to.deep.equal(views);
 		});
 	});
 	
