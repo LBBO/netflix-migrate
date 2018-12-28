@@ -7,7 +7,8 @@ chai.use(chaiAsPromised);
 chai.use(sinonChai);
 
 const main = require('./main');
-const {waterfall, getProfileGuid, switchProfile, getRatingHistory, getViewingHistory, setRatingHistory, exitWithMessage, writeToChosenOutput} = main;
+const {waterfall, getProfileGuid, switchProfile, getRatingHistory, getViewingHistory, setRatingHistory, exitWithMessage,
+	writeToChosenOutput, readDataFromChosenOutput} = main;
 const Netflix = require('netflix2');
 const fs = require('fs');
 
@@ -432,6 +433,114 @@ describe('getViewingHistory', () => {
 		netflixGetViewingHistory.rejects(new Error());
 		
 		await expect(getViewingHistory(netflix)).to.eventually.be.rejected;
+	});
+});
+
+describe('readDataFromChosenOutput', () => {
+	let fsReadFileSync, processStdinRead, jsonParse;
+	
+	const ratings = [
+		{
+			'ratingType': 'star',
+			'title': 'Some movie',
+			'movieID': 12345678,
+			'yourRating': 5,
+			'intRating': 50,
+			'date': '01/02/2016',
+			'timestamp': 1234567890123,
+			'comparableDate': 1234567890
+		},
+		{
+			'ratingType': 'thumb',
+			'title': 'Amazing Show',
+			'movieID': 87654321,
+			'yourRating': 2,
+			'date': '02/02/2018',
+			'timestamp': 2234567890123,
+			'comparableDate': 2234567890
+		}
+	];
+	const views = ratings;
+	const totalHistory = {
+		ratingHistory: ratings,
+		viewingHistory: views
+	};
+	
+	// JSON representations are hard coded into this test in order to notice when JSON.stringify changes
+	const ratingsJSON = '[{"ratingType":"star","title":"Some movie","movieID":12345678,"yourRating":5,"intRating":50,"date":"01/02/2016","timestamp":1234567890123,"comparableDate":1234567890},{"ratingType":"thumb","title":"Amazing Show","movieID":87654321,"yourRating":2,"date":"02/02/2018","timestamp":2234567890123,"comparableDate":2234567890}]';
+	const viewsJson = '[{"ratingType":"star","title":"Some movie","movieID":12345678,"yourRating":5,"intRating":50,"date":"01/02/2016","timestamp":1234567890123,"comparableDate":1234567890},{"ratingType":"thumb","title":"Amazing Show","movieID":87654321,"yourRating":2,"date":"02/02/2018","timestamp":2234567890123,"comparableDate":2234567890}]';
+	const totalHistoryJSON = '{"ratingHistory":' + ratingsJSON + ', "viewingHistory":' + viewsJson + '}';
+	const filename = 'test.json';
+	
+	beforeEach(() => {
+		processStdinRead = sinon.stub(process.stdin, 'read').returns(totalHistoryJSON);
+		fsReadFileSync = sinon.stub(fs, 'readFileSync').returns(totalHistoryJSON);
+		jsonParse = sinon.stub(JSON, 'parse').callThrough();
+	});
+	
+	afterEach(() => {
+		processStdinRead.restore();
+		fsReadFileSync.restore();
+		jsonParse.restore();
+	});
+	
+	it('Should read its data from stdin when no filename is specified', () => {
+		readDataFromChosenOutput();
+		expect(processStdinRead).to.have.been.calledOnce;
+		expect(fsReadFileSync).to.not.have.been.called;
+	});
+	
+	it('Should read its data from a file when a filename is specified', () => {
+		readDataFromChosenOutput(filename);
+		expect(fsReadFileSync).to.have.been.calledOnce;
+		expect(fsReadFileSync).to.have.been.calledWith(filename);
+		expect(processStdinRead).to.not.have.been.called;
+	});
+	
+	it('Should call JSON.parse to convert JSON from stdin to an object', () => {
+		readDataFromChosenOutput();
+		expect(jsonParse).to.have.been.calledOnce;
+		expect(jsonParse).to.have.been.calledWithExactly(totalHistory);
+	});
+	
+	it('Should call JSON.parse to convert JSON from file to an object', () => {
+		readDataFromChosenOutput(filename);
+		expect(jsonParse).to.have.been.calledOnce;
+		expect(jsonParse).to.have.been.calledWithExactly(totalHistory);
+	});
+	
+	it('Should always return an object with the properties ratingHistory and viewingHistory', () => {
+		const calledWithFilename = readDataFromChosenOutput(filename);
+		const calledWithoutFilename = readDataFromChosenOutput();
+		
+		for (let call of [calledWithFilename, calledWithoutFilename]) {
+			expect(call).to.be.instanceOf(Object);
+			expect(call).to.have.ownProperty('ratingHistory');
+			expect(call).to.have.ownProperty('viewingHistory');
+		}
+	});
+	
+	describe('When finding an array (data from v0.2.0 or lower)', () => {
+		beforeEach(() => {
+			processStdinRead.returns(ratingsJSON);
+			fsReadFileSync.returns(ratingsJSON);
+		});
+		
+		it('Should return a ratingHitory of data and a viewingHistory of null', () => {
+			const result = readDataFromChosenOutput();
+			expect(result.ratingHistory).to.deep.equal(ratings);
+			expect(result.viewingHistory).to.be.null;
+		});
+	});
+	
+	describe('When finding an object (data from v0.3.0 or higher)', () => {
+		it('Should return the correct rating and viewing histories', () => {
+			const result = readDataFromChosenOutput();
+			expect(result.ratingHistory).to.deep.equal(ratings);
+			expect(result.viewingHistory).to.deep.equal(views);
+		});
+		
+		//TODO finish testing this method, change main method and remove tests from setRatingHistory
 	});
 });
 

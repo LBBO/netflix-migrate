@@ -147,7 +147,7 @@ main.getViewingHistory = async function(netflix) {
 };
 
 /**
- * Writes a natove Object's JSON representation either to a file, if the file name
+ * Writes a native Object's JSON representation either to a file, if the file name
  * is specified, or to process.stdout
  * @param {Object} data
  * @param {String} [fileName]
@@ -164,25 +164,66 @@ main.writeToChosenOutput = (data, fileName, numberOfSpaces) => {
 };
 
 /**
- * Reads rating history from specified medium and writes it into
- * current netflix profile. A 100 millisecond timeout is added after
- * each written rating in order to not annoy Netflix, so this may
- * take a while.
+ * Reads data from a file (if filename is specified) or from
+ * stdout and parses rating history and viewing history
+ * @param {String} [fileName]
+ */
+main.readDataFromChosenOutput = (fileName) => {
+  let dataJSON;
+  
+  if (fileName === undefined) {
+    dataJSON = process.stdin.read();
+  } else {
+    dataJSON = fs.readFileSync(fileName);
+  }
+  
+  let data = JSON.parse(dataJSON);
+  let result = {
+    ratingHistory: null,
+    viewingHistory: null
+  };
+  
+  /*
+   * Ensure downwards compatibility for versions < 0.3.0
+   * In those versions, netflix-migrate used to only export
+   * the rating history as an array. So, if data is an array,
+   * we're only dealing with the ratingHistory
+   */
+  if (Array.isArray(data)) {
+    result.ratingHistory = data;
+  } else if (data && data instanceof Object) {
+    /*
+     * data is an object and should contain viewing history as well
+     * as rating history. If either is not found, throw an error.
+     */
+    
+    if (Array.isArray(data.ratingHistory)) {
+      result.ratingHistory = data.ratingHistory;
+    } else {
+      throw new Error('Expected data.ratingHistory to be an Array, instead found ' + JSON.stringify(data.ratingHistory));
+    }
+    
+    if (Array.isArray(data.viewingHistory)) {
+      result.viewingHistory = data.viewingHistory;
+    } else {
+      throw new Error('Expected data.viewingHistory to be an Array, instead found ' + JSON.stringify(data.viewingHistory));
+    }
+  } else {
+    throw new Error('An unexpected Error occurred while reading the data to be imported.');
+  }
+  
+  return result;
+};
+
+/**
+ * Writes rating history into current netflix profile. A 100 millisecond
+ * timeout is added after each written rating in order to not annoy Netflix,
+ * so this may take a while.
  * @param {Netflix} netflix
- * @param {String} [filename]
+ * @param {Array} [ratings]
  * @returns {Promise} Promise that is resolved after setting the last rating
  */
-main.setRatingHistory = async function(netflix, filename) {
-  let jsonRatings;
-
-  if (filename === undefined) {
-    jsonRatings = process.stdin.read();
-  } else {
-    jsonRatings = fs.readFileSync(filename);
-  }
-
-  let ratings = JSON.parse(jsonRatings);
-
+main.setRatingHistory = async function(netflix, ratings) {
   return main.waterfall(ratings.map(rating => async () => {
     try {
       if (rating.ratingType === 'thumb') {
