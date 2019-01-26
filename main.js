@@ -51,7 +51,7 @@ async function main(args, netflix = new Netflix()) {
 			main.writeToChosenOutput(dataToBeSaved, filename, args.spaces);
 		} else {
 			const filename = args.import === true ? undefined : args.import;
-			const savedData = main.readDataFromChosenOutput(filename);
+			const savedData = main.readDataFromChosenInput(filename);
 			await main.setRatingHistory(netflix, savedData.ratingHistory);
 		}
 	} catch (e) {
@@ -175,7 +175,7 @@ main.writeToChosenOutput = (data, fileName, numberOfSpaces) => {
  * stdout and parses rating history and viewing history
  * @param {String} [fileName]
  */
-main.readDataFromChosenOutput = (fileName) => {
+main.readDataFromChosenInput = (fileName) => {
 	let dataJSON;
 	
 	if (fileName === undefined) {

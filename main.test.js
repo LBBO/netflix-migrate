@@ -8,7 +8,7 @@ chai.use(sinonChai);
 
 const main = require('./main');
 const {waterfall, getProfileGuid, switchProfile, getRatingHistory, getViewingHistory, setRatingHistory, exitWithMessage,
-	writeToChosenOutput, readDataFromChosenOutput} = main;
+	writeToChosenOutput, readDataFromChosenInput} = main;
 const Netflix = require('netflix2');
 const fs = require('fs');
 
@@ -436,7 +436,7 @@ describe('getViewingHistory', () => {
 	});
 });
 
-describe('readDataFromChosenOutput', () => {
+describe('readDataFromChosenInput', () => {
 	let fsReadFileSync, processStdinRead, jsonParse;
 	
 	const ratings = [
@@ -490,33 +490,33 @@ describe('readDataFromChosenOutput', () => {
 	});
 	
 	it('Should read its data from stdin when no filename is specified', () => {
-		readDataFromChosenOutput();
+		readDataFromChosenInput();
 		expect(processStdinRead).to.have.been.calledOnce;
 		expect(fsReadFileSync).to.not.have.been.called;
 	});
 	
 	it('Should read its data from a file when a filename is specified', () => {
-		readDataFromChosenOutput(filename);
+		readDataFromChosenInput(filename);
 		expect(fsReadFileSync).to.have.been.calledOnce;
 		expect(fsReadFileSync).to.have.been.calledWith(filename);
 		expect(processStdinRead).to.not.have.been.called;
 	});
 	
 	it('Should call JSON.parse to convert JSON from stdin to an object', () => {
-		readDataFromChosenOutput();
+		readDataFromChosenInput();
 		expect(jsonParse).to.have.been.calledOnce;
 		expect(jsonParse).to.have.been.calledWithExactly(totalHistoryJSON);
 	});
 	
 	it('Should call JSON.parse to convert JSON from file to an object', () => {
-		readDataFromChosenOutput(filename);
+		readDataFromChosenInput(filename);
 		expect(jsonParse).to.have.been.calledOnce;
 		expect(jsonParse).to.have.been.calledWithExactly(totalHistoryJSON);
 	});
 	
 	it('Should always return an object with the properties ratingHistory and viewingHistory', () => {
-		const calledWithFilename = readDataFromChosenOutput(filename);
-		const calledWithoutFilename = readDataFromChosenOutput();
+		const calledWithFilename = readDataFromChosenInput(filename);
+		const calledWithoutFilename = readDataFromChosenInput();
 		
 		for (let call of [calledWithFilename, calledWithoutFilename]) {
 			expect(call).to.be.instanceOf(Object);
@@ -532,7 +532,7 @@ describe('readDataFromChosenOutput', () => {
 		});
 		
 		it('Should return a ratingHitory of data and a viewingHistory & version of null', () => {
-			const result = readDataFromChosenOutput();
+			const result = readDataFromChosenInput();
 			expect(result.ratingHistory).to.deep.equal(ratings);
 			expect(result.viewingHistory).to.be.null;
 			expect(result.version).to.be.null;
@@ -541,7 +541,7 @@ describe('readDataFromChosenOutput', () => {
 	
 	describe('When finding an object (data from v0.3.0 or higher)', () => {
 		it('Should return the correct version number, rating and viewing histories', () => {
-			const result = readDataFromChosenOutput();
+			const result = readDataFromChosenInput();
 			expect(result.version).to.deep.equal(totalHistory.version);
 			expect(result.ratingHistory).to.deep.equal(ratings);
 			expect(result.viewingHistory).to.deep.equal(views);
@@ -585,7 +585,7 @@ describe('readDataFromChosenOutput', () => {
 				processStdinRead.returns(scenario.JSON);
 				fsReadFileSync.returns(scenario.JSON);
 				
-				expect(() => readDataFromChosenOutput()).to.throw();
+				expect(() => readDataFromChosenInput()).to.throw();
 			});
 		}
 	});
@@ -722,7 +722,7 @@ describe('setRatingHistory', () => {
 
 describe('main', () => {
 	let netflix, netflixLogin, mainGetProfileGuid, mainSwitchProfile, mainGetRatingHistory, mainGetViewingHistory,
-		mainSetRatingHistory, mainExitWithMessage, mainWriteToChosenOutput, mainReadDataFromChosenOutput, stubs, args;
+		mainSetRatingHistory, mainExitWithMessage, mainWriteToChosenOutput, mainReadDataFromChosenInput, stubs, args;
 	const profile = {guid: 1234567890, firstName: 'Foo'};
 	const ratings = [
 		{
@@ -778,13 +778,13 @@ describe('main', () => {
 		
 		mainWriteToChosenOutput = sinon.stub(main, 'writeToChosenOutput');
 		
-		mainReadDataFromChosenOutput = sinon.stub(main, 'readDataFromChosenOutput')
+		mainReadDataFromChosenInput = sinon.stub(main, 'readDataFromChosenInput')
 			.returns(data);
 		
 		stubs = [
 			netflixLogin, mainExitWithMessage, mainGetProfileGuid, mainSwitchProfile,
 			mainGetRatingHistory, mainGetViewingHistory, mainSetRatingHistory, mainWriteToChosenOutput,
-			mainReadDataFromChosenOutput
+			mainReadDataFromChosenInput
 		];
 	});
 	
@@ -909,31 +909,31 @@ describe('main', () => {
 		});
 	});
 	
-	describe('Should call main.readDataFromChosenOutput', () => {
+	describe('Should call main.readDataFromChosenInput', () => {
 		beforeEach(() => {
 			args.shouldExport = false;
 		});
 		
 		it('if args.shouldExport is false', async () => {
 			await main(args, netflix);
-			expect(mainReadDataFromChosenOutput).to.have.been.calledOnce;
+			expect(mainReadDataFromChosenInput).to.have.been.calledOnce;
 		});
 		
 		it('with an undefined filename if args.import is true', async () => {
 			args.import = true;
 			await main(args, netflix);
-			expect(mainReadDataFromChosenOutput).to.have.been.calledOnceWithExactly(undefined);
+			expect(mainReadDataFromChosenInput).to.have.been.calledOnceWithExactly(undefined);
 		});
 		
 		it('with filename provided in args.import', async () => {
 			args.import = {foo: 'bar'};
 			await main(args, netflix);
-			expect(mainReadDataFromChosenOutput).to.have.been.calledOnceWithExactly(args.import);
+			expect(mainReadDataFromChosenInput).to.have.been.calledOnceWithExactly(args.import);
 		});
 		
 		it('after main.switchProfile', async () => {
 			await main(args, netflix);
-			expect(mainReadDataFromChosenOutput).to.have.been.calledAfter(mainSwitchProfile);
+			expect(mainReadDataFromChosenInput).to.have.been.calledAfter(mainSwitchProfile);
 		});
 	});
 	
@@ -948,16 +948,16 @@ describe('main', () => {
 			expect(mainGetRatingHistory).to.not.have.been.called;
 		});
 		
-		it('with the rating history of the object returned by main.readDataFromChosenOutput', async () => {
+		it('with the rating history of the object returned by main.readDataFromChosenInput', async () => {
 			const obj = {version: 'bar', viewingHistory: 'cool movies', ratingHistory: 1234567890};
-			mainReadDataFromChosenOutput.returns(obj);
+			mainReadDataFromChosenInput.returns(obj);
 			await main(args, netflix);
 			expect(mainSetRatingHistory).to.have.been.calledOnceWithExactly(netflix, obj.ratingHistory);
 		});
 		
-		it('after main.readDataFromChosenOutput', async () => {
+		it('after main.readDataFromChosenInput', async () => {
 			await main(args, netflix);
-			expect(mainSetRatingHistory).to.have.been.calledAfter(mainReadDataFromChosenOutput);
+			expect(mainSetRatingHistory).to.have.been.calledAfter(mainReadDataFromChosenInput);
 		});
 	});
 	
@@ -971,11 +971,14 @@ describe('main', () => {
 		
 		const functionsToTest = [
 			// @todo make this work with netflix
-			// { name: 'netflix.login', parent: netflix },
-			{name: 'main.getProfileGuid', parent: main, args: {}},
-			{name: 'main.switchProfile', parent: main, args: {}},
-			{name: 'main.getRatingHistory', parent: main, args: {shouldExport: true}},
-			{name: 'main.setRatingHistory', parent: main, args: {shouldExport: false}}
+			// {name: 'netflix.login', parent: netflix, args: {}},
+			{name: 'main.getProfileGuid', parent: main, args: {}, type: 'promise'},
+			{name: 'main.switchProfile', parent: main, args: {}, type: 'promise'},
+			{name: 'main.getRatingHistory', parent: main, args: {shouldExport: true}, type: 'promise'},
+			{name: 'main.getViewingHistory', parent: main, args: {shouldExport: true}, type: 'promise'},
+			{name: 'main.writeToChosenOutput', parent: main, args: {shouldExport: true}, type: 'function'},
+			{name: 'main.readDataFromChosenInput', parent: main, args: {shouldExport: false}, type: 'function'},
+			{name: 'main.setRatingHistory', parent: main, args: {shouldExport: false}, type: 'promise'}
 		];
 		
 		for (let i = 0; i < functionsToTest.length; i++) {
@@ -983,17 +986,18 @@ describe('main', () => {
 			
 			it(`by ${func.name}`, async () => {
 				const err = new Error();
-				const parts = func.name.split('.');
-				func.parent[parts[1]].rejects(err);
+				
+				const nameOfFunction = func.name.split('.')[1];
+				if (func.type === 'promise') {
+					func.parent[nameOfFunction].rejects(err);
+				} else {
+					func.parent[nameOfFunction].throws(err);
+				}
+				
 				await main(func.args, netflix);
+				
 				expect(mainExitWithMessage).to.have.been.calledOnce;
 				expect(mainExitWithMessage).to.have.been.calledOnceWithExactly(err);
-				
-				for (let j = i + 1; j < functionsToTest.length; j++) {
-					const laterFunctionName = functionsToTest[j].name.split('.')[1];
-					const laterFunction = functionsToTest[j].parent[laterFunctionName];
-					expect(laterFunction).to.not.have.been.called;
-				}
 			});
 		}
 	});
