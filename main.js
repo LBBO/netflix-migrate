@@ -12,6 +12,7 @@ Netflix.prototype.login = util.promisify(Netflix.prototype.login);
 Netflix.prototype.getProfiles = util.promisify(Netflix.prototype.getProfiles);
 Netflix.prototype.switchProfile = util.promisify(Netflix.prototype.switchProfile);
 Netflix.prototype.getRatingHistory = util.promisify(Netflix.prototype.getRatingHistory);
+Netflix.prototype.getViewingHistory = util.promisify(Netflix.prototype.getViewingHistory);
 Netflix.prototype.setStarRating = util.promisify(Netflix.prototype.setStarRating);
 Netflix.prototype.setThumbRating = util.promisify(Netflix.prototype.setThumbRating);
 const sleep = util.promisify(setTimeout);
@@ -24,25 +25,38 @@ const sleep = util.promisify(setTimeout);
  * @param netflix {Netflix}
  */
 async function main(args, netflix = new Netflix()) {
-  try {
-    await netflix.login({
-                          email: args.email,
-                          password: args.password
-                        });
-
-    const profileGuid = await main.getProfileGuid(netflix, args.profile);
-    await main.switchProfile(netflix, profileGuid);
-
-    if (args.shouldExport) {
-      const filename = args.export === true ? undefined : args.export;
-      await main.getRatingHistory(netflix, filename, args.spaces);
-    } else {
-      const filename = args.import === true ? undefined : args.import;
-      await main.setRatingHistory(netflix, filename);
-    }
-  } catch (e) {
-    main.exitWithMessage(e);
-  }
+	try {
+		await netflix.login({
+								email: args.email,
+								password: args.password
+							});
+		
+		const profileGuid = await main.getProfileGuid(netflix, args.profile);
+		await main.switchProfile(netflix, profileGuid);
+		
+		if (args.shouldExport) {
+			const filename = args.export === true ? undefined : args.export;
+			const packageJSON = require('./package');
+			const version = packageJSON.version;
+			
+			const ratingHistory = await main.getRatingHistory(netflix);
+			const viewingHistory = await main.getViewingHistory(netflix);
+			
+			const dataToBeSaved = {
+				version: version,
+				ratingHistory: ratingHistory,
+				viewingHistory: viewingHistory
+			};
+			
+			main.writeToChosenOutput(dataToBeSaved, filename, args.spaces);
+		} else {
+			const filename = args.import === true ? undefined : args.import;
+			const savedData = main.readDataFromChosenInput(filename);
+			await main.setRatingHistory(netflix, savedData.ratingHistory);
+		}
+	} catch (e) {
+		main.exitWithMessage(e);
+	}
 }
 
 /**
@@ -50,8 +64,8 @@ async function main(args, netflix = new Netflix()) {
  * @param {String | Error} message
  */
 main.exitWithMessage = function(message) {
-  console.error(message);
-  process.exit(1);
+	console.error(message);
+	process.exit(1);
 };
 
 /**
@@ -61,7 +75,7 @@ main.exitWithMessage = function(message) {
  * @returns {Promise}
  */
 main.waterfall = async function(promises) {
-  return promises.reduce((promiseChain, currPromise) => promiseChain.then(currPromise), Promise.resolve());
+	return promises.reduce((promiseChain, currPromise) => promiseChain.then(currPromise), Promise.resolve());
 };
 
 /**
@@ -71,23 +85,23 @@ main.waterfall = async function(promises) {
  * @returns {Promise} Promise that is resolved with guid once fetched
  */
 main.getProfileGuid = async function(netflix, profileName) {
-  let profiles;
-  
-  try {
-    profiles = await netflix.getProfiles();
-  } catch (e) {
-    console.error(e);
-    throw new Error('Profile GUID could not be determined. For more information, please see previous log' +
-                      'statements.');
-  }
-  
-  const profileWithCorrectName = profiles.find(profile => profile.firstName === profileName);
-
-  if (profileWithCorrectName === undefined) {
-    throw new Error(`No profile with name "${profileName}"`);
-  } else {
-    return profileWithCorrectName.guid;
-  }
+	let profiles;
+	
+	try {
+		profiles = await netflix.getProfiles();
+	} catch (e) {
+		console.error(e);
+		throw new Error('Profile GUID could not be determined. For more information, please see previous log' +
+							'statements.');
+	}
+	
+	const profileWithCorrectName = profiles.find(profile => profile.firstName === profileName);
+	
+	if (profileWithCorrectName === undefined) {
+		throw new Error(`No profile with name "${profileName}"`);
+	} else {
+		return profileWithCorrectName.guid;
+	}
 };
 
 /**
@@ -97,76 +111,147 @@ main.getProfileGuid = async function(netflix, profileName) {
  * @returns {Promise} Promise that is resolved once profile is switched
  */
 main.switchProfile = async function(netflix, guid) {
-  try {
-    return await netflix.switchProfile(guid);
-  } catch (e) {
-    console.error(e);
-    throw new Error('Could not switch profiles. For more information, please see previous log statements.');
-  }
+	try {
+		return await netflix.switchProfile(guid);
+	} catch (e) {
+		console.error(e);
+		throw new Error('Could not switch profiles. For more information, please see previous log statements.');
+	}
 };
 
 /**
- * Gets rating history from current profile and prints it
- * to console or specified file
+ * Gets rating history from current profile
  * @param {Netflix} netflix
- * @param {String} [fileName]
- * @param {Number | Null} spaces
- * @returns {Promise} Promise that is resolved once rating history has been fetched
- * @todo make pure by extracting spaces into parameter
+ * @returns {Promise} Promise that is resolved with rating history once it has been fetched
  */
-main.getRatingHistory = async function(netflix, fileName, spaces) {
-  let ratings;
-  
-  try {
-    ratings = await netflix.getRatingHistory();
-  } catch (e) {
-    console.error(e);
-    throw new Error('Could not retrieve rating history. For more information, please see previous log statements.');
-  }
-  
-  const jsonRatings = JSON.stringify(ratings, null, spaces);
-
-  if (fileName === undefined) {
-    process.stdout.write(jsonRatings);
-  } else {
-    fs.writeFileSync(fileName, jsonRatings);
-  }
+main.getRatingHistory = async function(netflix) {
+	let ratings;
+	
+	try {
+		ratings = await netflix.getRatingHistory();
+		return ratings;
+	} catch (e) {
+		console.error(e);
+		throw new Error('Could not retrieve rating history. For more information, please see previous log statements.');
+	}
 };
 
 /**
- * Reads rating history from specified medium and writes it into
- * current netflix profile. A 100 millisecond timeout is added after
- * each written rating in order to not annoy Netflix, so this may
- * take a while.
+ * Gets viewing history from current profile
  * @param {Netflix} netflix
- * @param {String} [filename]
+ * @returns {Promise} Promise that is resolved with viewing history once it has been fetched
+ */
+main.getViewingHistory = async function(netflix) {
+	let viewingHistory;
+	
+	try {
+		viewingHistory = await netflix.getViewingHistory();
+		return viewingHistory;
+	} catch (e) {
+		console.error(e);
+		throw new Error('Could not retrieve viewing history. For more information, please see previous log satements.')
+	}
+};
+
+/**
+ * Writes a native Object's JSON representation either to a file, if the file name
+ * is specified, or to process.stdout
+ * @param {Object} data
+ * @param {String} [fileName]
+ * @param {Number | String} [numberOfSpaces]
+ */
+main.writeToChosenOutput = (data, fileName, numberOfSpaces) => {
+	const dataJson = JSON.stringify(data, null, numberOfSpaces);
+	
+	if (fileName === undefined) {
+		process.stdout.write(dataJson);
+	} else {
+		fs.writeFileSync(fileName, dataJson);
+	}
+};
+
+/**
+ * Reads data from a file (if filename is specified) or from
+ * stdout and parses rating history and viewing history
+ * @param {String} [fileName]
+ */
+main.readDataFromChosenInput = (fileName) => {
+	let dataJSON;
+	
+	if (fileName === undefined) {
+		dataJSON = process.stdin.read();
+	} else {
+		dataJSON = fs.readFileSync(fileName);
+	}
+	
+	let data = JSON.parse(dataJSON);
+	let result = {
+		version: null,
+		ratingHistory: null,
+		viewingHistory: null
+	};
+	
+	/*
+	 * Ensure downwards compatibility for versions < 0.3.0
+	 * In those versions, netflix-migrate used to only export
+	 * the rating history as an array. So, if data is an array,
+	 * we're only dealing with the ratingHistory
+	 */
+	if (Array.isArray(data)) {
+		result.ratingHistory = data;
+	} else if (data && data instanceof Object) {
+		/*
+		 * data is an object and should contain viewing history as well
+		 * as rating history. If either is not found, throw an error.
+		 */
+		
+		if (Array.isArray(data.ratingHistory)) {
+			result.ratingHistory = data.ratingHistory;
+		} else {
+			throw new Error('Expected data.ratingHistory to be an Array, instead found ' + JSON.stringify(data.ratingHistory));
+		}
+		
+		if (Array.isArray(data.viewingHistory)) {
+			result.viewingHistory = data.viewingHistory;
+		} else {
+			throw new Error('Expected data.viewingHistory to be an Array, instead found ' + JSON.stringify(data.viewingHistory));
+		}
+		
+		if (typeof data.version === 'string' && data.version.match(/^\d+\.\d+\.\d+$/)) {
+			result.version = data.version;
+		} else {
+			throw new Error('Expected data.version to be a string like 1.2.3, instead found ' + data.version);
+		}
+	} else {
+		throw new Error('An unexpected Error occurred while reading the data to be imported.');
+	}
+	
+	return result;
+};
+
+/**
+ * Writes rating history into current netflix profile. A 100 millisecond
+ * timeout is added after each written rating in order to not annoy Netflix,
+ * so this may take a while.
+ * @param {Netflix} netflix
+ * @param {Array} [ratings]
  * @returns {Promise} Promise that is resolved after setting the last rating
  */
-main.setRatingHistory = async function(netflix, filename) {
-  let jsonRatings;
-
-  if (filename === undefined) {
-    jsonRatings = process.stdin.read();
-  } else {
-    jsonRatings = fs.readFileSync(filename);
-  }
-
-  let ratings = JSON.parse(jsonRatings);
-
-  return main.waterfall(ratings.map(rating => async () => {
-    try {
-      if (rating.ratingType === 'thumb') {
-        await netflix.setThumbRating(rating.movieID, rating.yourRating);
-      } else {
-        await netflix.setStarRating(rating.movieID, rating.yourRating);
-      }
-    } catch (e) {
-      console.error(e);
-      throw new Error('Could not set rating for ' + rating.name + '. For more information, please see ' +
-                        'previous log statements.');
-    }
-    await sleep(100);
-  }));
+main.setRatingHistory = async function(netflix, ratings) {
+	return main.waterfall(ratings.map(rating => async () => {
+		try {
+			if (rating.ratingType === 'thumb') {
+				await netflix.setThumbRating(rating.movieID, rating.yourRating);
+			} else {
+				await netflix.setStarRating(rating.movieID, rating.yourRating);
+			}
+		} catch (e) {
+			console.error(e);
+			throw new Error('Could not set rating for ' + rating.name + '. For more information, please see ' +
+								'previous log statements.');
+		}
+		await sleep(100);
+	}));
 };
 
 module.exports = main;
