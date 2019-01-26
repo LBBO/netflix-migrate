@@ -257,7 +257,7 @@ describe('writeToChosenOutput', () => {
 	it('Should pass spaces along, if specified', () => {
 		writeToChosenOutput(data, undefined, numberOfSpaces);
 		expect(jsonStringify).to.have.been.calledWithExactly(data, null, numberOfSpaces);
-	})
+	});
 
 	it('Should only print to process.stdout when filename is not specified', () => {
 		writeToChosenOutput(data, undefined);
@@ -461,7 +461,12 @@ describe('readDataFromChosenOutput', () => {
 		}
 	];
 	const views = ratings;
+	const versions = {
+		beforeViewingHistory: '0.2.0',
+		afterViewingHistory: '0.3.0'
+	};
 	const totalHistory = {
+		version: versions.afterViewingHistory,
 		ratingHistory: ratings,
 		viewingHistory: views
 	};
@@ -469,7 +474,7 @@ describe('readDataFromChosenOutput', () => {
 	// JSON representations are hard coded into this test in order to notice when JSON.stringify changes
 	const ratingsJSON = '[{"ratingType":"star","title":"Some movie","movieID":12345678,"yourRating":5,"intRating":50,"date":"01/02/2016","timestamp":1234567890123,"comparableDate":1234567890},{"ratingType":"thumb","title":"Amazing Show","movieID":87654321,"yourRating":2,"date":"02/02/2018","timestamp":2234567890123,"comparableDate":2234567890}]';
 	const viewsJson = '[{"ratingType":"star","title":"Some movie","movieID":12345678,"yourRating":5,"intRating":50,"date":"01/02/2016","timestamp":1234567890123,"comparableDate":1234567890},{"ratingType":"thumb","title":"Amazing Show","movieID":87654321,"yourRating":2,"date":"02/02/2018","timestamp":2234567890123,"comparableDate":2234567890}]';
-	const totalHistoryJSON = '{"ratingHistory":' + ratingsJSON + ', "viewingHistory":' + viewsJson + '}';
+	const totalHistoryJSON = '{"ratingHistory":' + ratingsJSON + ', "version":"' + versions.afterViewingHistory + '", "viewingHistory":' + viewsJson + '}';
 	const filename = 'test.json';
 	
 	beforeEach(() => {
@@ -500,13 +505,13 @@ describe('readDataFromChosenOutput', () => {
 	it('Should call JSON.parse to convert JSON from stdin to an object', () => {
 		readDataFromChosenOutput();
 		expect(jsonParse).to.have.been.calledOnce;
-		expect(jsonParse).to.have.been.calledWithExactly(totalHistory);
+		expect(jsonParse).to.have.been.calledWithExactly(totalHistoryJSON);
 	});
 	
 	it('Should call JSON.parse to convert JSON from file to an object', () => {
 		readDataFromChosenOutput(filename);
 		expect(jsonParse).to.have.been.calledOnce;
-		expect(jsonParse).to.have.been.calledWithExactly(totalHistory);
+		expect(jsonParse).to.have.been.calledWithExactly(totalHistoryJSON);
 	});
 	
 	it('Should always return an object with the properties ratingHistory and viewingHistory', () => {
@@ -526,27 +531,68 @@ describe('readDataFromChosenOutput', () => {
 			fsReadFileSync.returns(ratingsJSON);
 		});
 		
-		it('Should return a ratingHitory of data and a viewingHistory of null', () => {
+		it('Should return a ratingHitory of data and a viewingHistory & version of null', () => {
 			const result = readDataFromChosenOutput();
 			expect(result.ratingHistory).to.deep.equal(ratings);
 			expect(result.viewingHistory).to.be.null;
+			expect(result.version).to.be.null;
 		});
 	});
 	
 	describe('When finding an object (data from v0.3.0 or higher)', () => {
-		it('Should return the correct rating and viewing histories', () => {
+		it('Should return the correct version number, rating and viewing histories', () => {
 			const result = readDataFromChosenOutput();
+			expect(result.version).to.deep.equal(totalHistory.version);
 			expect(result.ratingHistory).to.deep.equal(ratings);
 			expect(result.viewingHistory).to.deep.equal(views);
 		});
 		
-		//TODO finish testing this method, change main method and remove tests from setRatingHistory
+		const unacceptableScenarios = [
+			{
+				description: 'there is no rating history',
+				JSON: '{"version":"' + versions.afterViewingHistory + '", "viewingHistory":' + viewsJson + '}'
+			},
+			{
+				description: 'the rating history is not an array',
+				JSON: '{"ratingHistory":1, "version":"' + versions.afterViewingHistory + '", "viewingHistory":' + viewsJson + '}'
+			},
+			{
+				description: 'there is no viewing history',
+				JSON: '{"ratingHistory":' + ratingsJSON + ', "version":"' + versions.afterViewingHistory + '"}'
+			},
+			{
+				description: 'the viewing history is not an array',
+				JSON: '{"ratingHistory":' + ratingsJSON + ', "version":"' + versions.afterViewingHistory + '",' +
+					' "viewingHistory":1}'
+			},
+			{
+				description: 'there is no version',
+				JSON: '{"ratingHistory":' + ratingsJSON + ', "viewingHistory":' + viewsJson + '}'
+			},
+			{
+				description: 'the version is not a correct version number',
+				JSON: '{"ratingHistory":' + ratingsJSON + ', "version":"1.2.3.4",' +
+					' "viewingHistory":' + viewsJson + '}'
+			},
+			{
+				description: 'the data is neither an array, nor an object',
+				JSON: '1'
+			}
+		];
+		
+		for (const scenario of unacceptableScenarios) {
+			it('Should throw an error if ' + scenario.description, () => {
+				processStdinRead.returns(scenario.JSON);
+				fsReadFileSync.returns(scenario.JSON);
+				
+				expect(() => readDataFromChosenOutput()).to.throw();
+			});
+		}
 	});
 });
 
 describe('setRatingHistory', () => {
-	let netflix, netflixSetStarRating, netflixSetThumbRating, processStdinRead, fsReadFileSync, consoleError;
-	const filename = 'test.json';
+	let netflix, netflixSetStarRating, netflixSetThumbRating, consoleError;
 	const ratings = [
 		{
 			'ratingType': 'star',
@@ -571,58 +617,34 @@ describe('setRatingHistory', () => {
 	const starRatings = ratings.filter(rating => rating.ratingType === 'star');
 	const thumbRatings = ratings.filter(rating => rating.ratingType === 'thumb');
 	
-	// JSON representation is hard coded into this test in order to notice when JSON.stringify changes
-	const ratingsJSON = '[{"ratingType":"star","title":"Some movie","movieID":12345678,"yourRating":5,"intRating":50,"date":"01/02/2016","timestamp":1234567890123,"comparableDate":1234567890},{"ratingType":"thumb","title":"Amazing Show","movieID":87654321,"yourRating":2,"date":"02/02/2018","timestamp":2234567890123,"comparableDate":2234567890}]';
-	
 	beforeEach(() => {
 		netflix = new Netflix();
 		netflixSetStarRating = sinon.stub(netflix, 'setStarRating')
 			.resolves();
 		netflixSetThumbRating = sinon.stub(netflix, 'setThumbRating')
 			.resolves();
-		processStdinRead = sinon.stub(process.stdin, 'read')
-			.returns(ratingsJSON);
-		fsReadFileSync = sinon.stub(fs, 'readFileSync')
-			.returns(ratingsJSON);
-		
 		consoleError = sinon.stub(console, 'error');
 	});
 	
 	afterEach(() => {
 		netflixSetStarRating.restore();
 		netflixSetThumbRating.restore();
-		processStdinRead.restore();
-		fsReadFileSync.restore();
 		consoleError.restore();
 	});
 	
 	it('Should return a promise', () => {
-		processStdinRead.returns('[]');
 		expect(setRatingHistory(netflix)).to.be.instanceOf(Promise);
-	});
-	
-	it('Should read rating history from file when filename is specified', async () => {
-		await setRatingHistory(netflix, filename);
-		expect(fsReadFileSync).to.have.been.calledOnce;
-		expect(fsReadFileSync).to.have.been.calledWithExactly(filename);
-		expect(processStdinRead).to.not.have.been.calledOnce;
-	});
-	
-	it('Should read rating history from stdin when filename is not specified', async () => {
-		await setRatingHistory(netflix);
-		expect(processStdinRead).to.have.been.calledOnce;
-		expect(fsReadFileSync).to.not.have.been.calledOnce;
 	});
 	
 	it('Should take about 100ms per rating due to timeout between requests', async () => {
 		const beginning = Date.now().valueOf();
-		await setRatingHistory(netflix);
+		await setRatingHistory(netflix, ratings);
 		const end = Date.now().valueOf();
 		expect(end - beginning).to.not.be.lessThan(ratings.length * 100);
 	});
 	
 	it('Should call netflix.setStarRating once per star rating', async () => {
-		await setRatingHistory(netflix);
+		await setRatingHistory(netflix, ratings);
 		expect(netflixSetStarRating).to.have.callCount(starRatings.length);
 		
 		for (const rating of starRatings) {
@@ -631,7 +653,7 @@ describe('setRatingHistory', () => {
 	});
 	
 	it('Should call netflix.setThumbRating once per thumb rating', async () => {
-		await setRatingHistory(netflix);
+		await setRatingHistory(netflix, ratings);
 		expect(netflixSetThumbRating).to.have.callCount(thumbRatings.length);
 		
 		for (const rating of thumbRatings) {
@@ -642,7 +664,7 @@ describe('setRatingHistory', () => {
 	it('Should call main.waterfall once with an array of functions that return promises', async () => {
 		const waterfallStub = sinon.stub(main, 'waterfall').resolves();
 		
-		await setRatingHistory(netflix);
+		await setRatingHistory(netflix, ratings);
 		
 		expect(waterfallStub).to.have.been.calledOnce;
 		const functions = waterfallStub.args[0][0];
@@ -659,7 +681,7 @@ describe('setRatingHistory', () => {
 	it('Should call main.waterfall once with an array of functions', async () => {
 		const waterfallStub = sinon.stub(main, 'waterfall').resolves();
 		
-		await setRatingHistory(netflix);
+		await setRatingHistory(netflix, ratings);
 		
 		expect(waterfallStub).to.have.been.calledOnce;
 		const functions = waterfallStub.args[0][0];
@@ -678,7 +700,7 @@ describe('setRatingHistory', () => {
 	});
 	
 	it('Should call netflix.setStarRating in correct order', async () => {
-		await setRatingHistory(netflix);
+		await setRatingHistory(netflix, ratings);
 		for (let i = 0; i < starRatings.length; i++) {
 			expect(netflixSetStarRating.getCall(i))
 				.to.have.been.calledWithExactly(
@@ -688,7 +710,7 @@ describe('setRatingHistory', () => {
 	});
 	
 	it('Should call netflix.setThumbRating in correct order', async () => {
-		await setRatingHistory(netflix);
+		await setRatingHistory(netflix, ratings);
 		for (let i = 0; i < thumbRatings.length; i++) {
 			expect(netflixSetThumbRating.getCall(i))
 				.to.have.been.calledWithExactly(
@@ -700,7 +722,7 @@ describe('setRatingHistory', () => {
 
 describe('main', () => {
 	let netflix, netflixLogin, mainGetProfileGuid, mainSwitchProfile, mainGetRatingHistory, mainGetViewingHistory,
-		mainSetRatingHistory, mainExitWithMessage, mainWriteToChosenOutput, stubs, args;
+		mainSetRatingHistory, mainExitWithMessage, mainWriteToChosenOutput, mainReadDataFromChosenOutput, stubs, args;
 	const profile = {guid: 1234567890, firstName: 'Foo'};
 	const ratings = [
 		{
@@ -724,6 +746,11 @@ describe('main', () => {
 		}
 	];
 	const views = ratings;
+	const data = {
+		version: require('./package').version,
+		ratingHistory: ratings,
+		viewingHistory: views
+	};
 	
 	beforeEach(() => {
 		netflix = new Netflix();
@@ -751,9 +778,13 @@ describe('main', () => {
 		
 		mainWriteToChosenOutput = sinon.stub(main, 'writeToChosenOutput');
 		
+		mainReadDataFromChosenOutput = sinon.stub(main, 'readDataFromChosenOutput')
+			.returns(data);
+		
 		stubs = [
 			netflixLogin, mainExitWithMessage, mainGetProfileGuid, mainSwitchProfile,
-			mainGetRatingHistory, mainGetViewingHistory, mainSetRatingHistory, mainWriteToChosenOutput
+			mainGetRatingHistory, mainGetViewingHistory, mainSetRatingHistory, mainWriteToChosenOutput,
+			mainReadDataFromChosenOutput
 		];
 	});
 	
@@ -878,6 +909,34 @@ describe('main', () => {
 		});
 	});
 	
+	describe('Should call main.readDataFromChosenOutput', () => {
+		beforeEach(() => {
+			args.shouldExport = false;
+		});
+		
+		it('if args.shouldExport is false', async () => {
+			await main(args, netflix);
+			expect(mainReadDataFromChosenOutput).to.have.been.calledOnce;
+		});
+		
+		it('with an undefined filename if args.import is true', async () => {
+			args.import = true;
+			await main(args, netflix);
+			expect(mainReadDataFromChosenOutput).to.have.been.calledOnceWithExactly(undefined);
+		});
+		
+		it('with filename provided in args.import', async () => {
+			args.import = {foo: 'bar'};
+			await main(args, netflix);
+			expect(mainReadDataFromChosenOutput).to.have.been.calledOnceWithExactly(args.import);
+		});
+		
+		it('after main.switchProfile', async () => {
+			await main(args, netflix);
+			expect(mainReadDataFromChosenOutput).to.have.been.calledAfter(mainSwitchProfile);
+		});
+	});
+	
 	describe('Should call main.setRatingHistory', () => {
 		beforeEach(() => {
 			args.shouldExport = false;
@@ -889,21 +948,16 @@ describe('main', () => {
 			expect(mainGetRatingHistory).to.not.have.been.called;
 		});
 		
-		it('with an undefined filename if args.import is true', async () => {
-			args.import = true;
+		it('with the rating history of the object returned by main.readDataFromChosenOutput', async () => {
+			const obj = {version: 'bar', viewingHistory: 'cool movies', ratingHistory: 1234567890};
+			mainReadDataFromChosenOutput.returns(obj);
 			await main(args, netflix);
-			expect(mainSetRatingHistory).to.have.been.calledOnceWithExactly(netflix, undefined);
+			expect(mainSetRatingHistory).to.have.been.calledOnceWithExactly(netflix, obj.ratingHistory);
 		});
 		
-		it('with filename provided in args.import', async () => {
-			args.import = {foo: 'bar'};
+		it('after main.readDataFromChosenOutput', async () => {
 			await main(args, netflix);
-			expect(mainSetRatingHistory).to.have.been.calledOnceWithExactly(netflix, args.import);
-		});
-		
-		it('after main.switchProfile', async () => {
-			await main(args, netflix);
-			expect(mainSetRatingHistory).to.have.been.calledAfter(mainSwitchProfile);
+			expect(mainSetRatingHistory).to.have.been.calledAfter(mainReadDataFromChosenOutput);
 		});
 	});
 	
