@@ -265,8 +265,8 @@ main.setRatingHistory = async function(netflix, ratings) {
 			}
 		} catch (e) {
 			console.error(e);
-			throw new Error('Could not set rating for ' + rating.name + '. For more information, please see ' +
-								'previous log statements.');
+			throw new Error('Could not set ' + rating.ratingType + ' rating for ' + rating.title + '. For more' +
+								' information, please see previous log statements.');
 		}
 		await sleep(100);
 	}));
