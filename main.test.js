@@ -268,7 +268,9 @@ describe('writeToChosenOutput', () => {
 	it('Should only print to file when filename is specified', async () => {
 		writeToChosenOutput(data, filename);
 		expect(fsWriteFileSync).to.have.been.calledOnce;
-		expect(processStdoutWrite).to.not.have.been.called;
+		// Expect a log statement to the console but not the complete data
+		expect(processStdoutWrite).to.have.been.calledOnce;
+		expect(processStdoutWrite).to.have.been.calledWith('Writing results to ' + filename + '\n');
 	});
 	
 	it('Should print correct JSON to process.stdout', async () => {

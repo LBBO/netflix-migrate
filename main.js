@@ -116,8 +116,9 @@ main.getProfileGuid = async function(netflix, profileName) {
  */
 main.switchProfile = async function(netflix, guid) {
 	try {
-		await netflix.switchProfile(guid);
+		const result = await netflix.switchProfile(guid);
 		console.log('Successfully switched profile!');
+		return result;
 	} catch (e) {
 		console.error(e);
 		throw new Error('Could not switch profiles. For more information, please see previous log statements.');
