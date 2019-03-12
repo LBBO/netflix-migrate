@@ -1,4 +1,4 @@
-# netflix-migrate [![Build Status](https://travis-ci.com/genderquery/netflix-migrate.svg?branch=master)](https://travis-ci.com/genderquery/netflix-migrate)
+# netflix-migrate [![Build Status](https://travis-ci.com/LBBO/netflix-migrate.svg?branch=master)](https://travis-ci.com/LBBO/netflix-migrate)
 
 A command line utility to export and import your ratings.
 

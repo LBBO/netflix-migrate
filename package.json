@@ -7,11 +7,11 @@
     "migrate"
   ],
   "license": "MIT",
-  "author": "Avery Larsen <avery@stoatly.com>",
-  "homepage": "https://github.com/genderquery/netflix-migrate",
+  "author": "Michael Kuckuk <mdk@kuckuk.com>",
+  "homepage": "https://github.com/LBBO/netflix-migrate",
   "repository": {
     "type": "git",
-    "url": "https://github.com/genderquery/netflix-migrate.git"
+    "url": "https://github.com/LBBO/netflix-migrate.git"
   },
   "main": "./index.js",
   "bin": {
