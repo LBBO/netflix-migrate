@@ -1,3 +1,4 @@
 node_modules
 .idea
 .nyc_output
+data_for_testing
