@@ -8,13 +8,6 @@ const util = require('util');
 // Promisify the netflix2 API so that it doesn't follow the
 // (error, [...],  callback) => void scheme but instead looks
 // like (...) => Promise
-Netflix.prototype.login = util.promisify(Netflix.prototype.login);
-Netflix.prototype.getProfiles = util.promisify(Netflix.prototype.getProfiles);
-Netflix.prototype.switchProfile = util.promisify(Netflix.prototype.switchProfile);
-Netflix.prototype.getRatingHistory = util.promisify(Netflix.prototype.getRatingHistory);
-Netflix.prototype.getViewingHistory = util.promisify(Netflix.prototype.getViewingHistory);
-Netflix.prototype.setStarRating = util.promisify(Netflix.prototype.setStarRating);
-Netflix.prototype.setThumbRating = util.promisify(Netflix.prototype.setThumbRating);
 const sleep = util.promisify(setTimeout);
 
 /**
