@@ -2,15 +2,10 @@
 
 A command line utility to export and import your ratings.
 
-## Installation
-```
-npm install -g netflix-migrate
-```
-
 ## Usage
 ```
-netflix-migrate --email old@example.com --profile Lana --export netflixData.json
-netflix-migrate --email new@example.com --profile Lana --import netflixData.json
+npx netflix-migrate --email old@example.com --profile Lana --export netflixData.json
+npx netflix-migrate --email new@example.com --profile Lana --import netflixData.json
 ```
 You will be prompted for your email address, password, and/or profile name if not provided as a parameter. If you do not specify a file path for `--export` or `--import`, `stdout` and `stdin` will be used, respectively. If `--export` or `--import` are not provided, `--export` is assumed (and `stdout` will be used).
 
