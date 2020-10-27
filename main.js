@@ -28,9 +28,9 @@ async function main(args, netflix = new Netflix()) {
 	try {
 		console.log('Logging into Netflix as ' + args.email);
 		await netflix.login({
-								email: args.email,
-								password: args.password
-							});
+			email: args.email,
+			password: args.password
+		});
 		
 		console.log('Switching to profile ' + args.profile);
 		const profileGuid = await main.getProfileGuid(netflix, args.profile);
@@ -193,7 +193,7 @@ main.readDataFromChosenInput = (fileName) => {
 		console.log('Please enter your data:');
 		dataJSON = process.stdin.read();
 	} else {
-		console.log('Reading data from ' + fileName);
+		console.log(`Reading data from ${fileName}`);
 		dataJSON = fs.readFileSync(fileName);
 	}
 	
@@ -222,19 +222,19 @@ main.readDataFromChosenInput = (fileName) => {
 		if (Array.isArray(data.ratingHistory)) {
 			result.ratingHistory = data.ratingHistory;
 		} else {
-			throw new Error('Expected data.ratingHistory to be an Array, instead found ' + JSON.stringify(data.ratingHistory));
+			throw new Error(`Expected data.ratingHistory to be an Array, instead found ${JSON.stringify(data.ratingHistory)}`);
 		}
 		
 		if (Array.isArray(data.viewingHistory)) {
 			result.viewingHistory = data.viewingHistory;
 		} else {
-			throw new Error('Expected data.viewingHistory to be an Array, instead found ' + JSON.stringify(data.viewingHistory));
+			throw new Error(`Expected data.viewingHistory to be an Array, instead found ${JSON.stringify(data.viewingHistory)}`);
 		}
 		
 		if (typeof data.version === 'string' && data.version.match(/^\d+\.\d+\.\d+$/)) {
 			result.version = data.version;
 		} else {
-			throw new Error('Expected data.version to be a string like 1.2.3, instead found ' + data.version);
+			throw new Error(`Expected data.version to be a string like 1.2.3, instead found ${data.version}`);
 		}
 		
 		console.log('Found rating history and viewing history');
