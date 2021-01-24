@@ -19,37 +19,37 @@ const sleep = util.promisify(setTimeout);
  */
 async function main(args, netflix = new Netflix()) {
 	try {
-		console.log('Logging into Netflix as ' + args.email);
+		console.log('Logging into Netflix using Cookies');
 		await netflix.login({
-								email: args.email,
-								password: args.password
+								// remove linie breaks, just in case
+								cookies: args.cookie && args.cookie.split(/\r?\n/gm).join('')
 							});
-		
+
 		console.log('Switching to profile ' + args.profile);
 		const profileGuid = await main.getProfileGuid(netflix, args.profile);
 		await main.switchProfile(netflix, profileGuid);
-		
+
 		if (args.shouldExport) {
 			const filename = args.export === true ? undefined : args.export;
 			const packageJSON = require('./package');
 			const version = packageJSON.version;
-			
+
 			const ratingHistory = await main.getRatingHistory(netflix);
 			const viewingHistory = await main.getViewingHistory(netflix);
-			
+
 			const dataToBeSaved = {
 				version: version,
 				ratingHistory: ratingHistory,
 				viewingHistory: viewingHistory
 			};
-			
+
 			main.writeToChosenOutput(dataToBeSaved, filename, args.spaces);
 		} else {
 			const filename = args.import === true ? undefined : args.import;
 			const savedData = main.readDataFromChosenInput(filename);
 			await main.setRatingHistory(netflix, savedData.ratingHistory);
 		}
-		
+
 		console.log('Done');
 	} catch (e) {
 		main.exitWithMessage(e);
@@ -83,7 +83,7 @@ main.waterfall = async function(promises) {
  */
 main.getProfileGuid = async function(netflix, profileName) {
 	let profiles;
-	
+
 	try {
 		profiles = await netflix.getProfiles();
 	} catch (e) {
@@ -91,9 +91,9 @@ main.getProfileGuid = async function(netflix, profileName) {
 		throw new Error('Profile GUID could not be determined. For more information, please see previous log' +
 							'statements.');
 	}
-	
+
 	const profileWithCorrectName = profiles.find(profile => profile.firstName === profileName);
-	
+
 	if (profileWithCorrectName === undefined) {
 		throw new Error(`No profile with name "${profileName}"`);
 	} else {
@@ -125,7 +125,7 @@ main.switchProfile = async function(netflix, guid) {
  */
 main.getRatingHistory = async function(netflix) {
 	let ratings;
-	
+
 	try {
 		console.log('Getting rating history...');
 		ratings = await netflix.getRatingHistory();
@@ -144,7 +144,7 @@ main.getRatingHistory = async function(netflix) {
  */
 main.getViewingHistory = async function(netflix) {
 	let viewingHistory;
-	
+
 	try {
 		console.log('Getting viewing history...');
 		viewingHistory = await netflix.getViewingHistory();
@@ -165,7 +165,7 @@ main.getViewingHistory = async function(netflix) {
  */
 main.writeToChosenOutput = (data, fileName, numberOfSpaces) => {
 	const dataJson = JSON.stringify(data, null, numberOfSpaces);
-	
+
 	if (fileName === undefined) {
 		process.stdout.write(dataJson);
 	} else {
@@ -181,7 +181,7 @@ main.writeToChosenOutput = (data, fileName, numberOfSpaces) => {
  */
 main.readDataFromChosenInput = (fileName) => {
 	let dataJSON;
-	
+
 	if (fileName === undefined) {
 		console.log('Please enter your data:');
 		dataJSON = process.stdin.read();
@@ -189,14 +189,14 @@ main.readDataFromChosenInput = (fileName) => {
 		console.log('Reading data from ' + fileName);
 		dataJSON = fs.readFileSync(fileName);
 	}
-	
+
 	let data = JSON.parse(dataJSON);
 	let result = {
 		version: null,
 		ratingHistory: null,
 		viewingHistory: null
 	};
-	
+
 	/*
 	 * Ensure downwards compatibility for versions < 0.3.0
 	 * In those versions, netflix-migrate used to only export
@@ -211,30 +211,30 @@ main.readDataFromChosenInput = (fileName) => {
 		 * data is an object and should contain viewing history as well
 		 * as rating history. If either is not found, throw an error.
 		 */
-		
+
 		if (Array.isArray(data.ratingHistory)) {
 			result.ratingHistory = data.ratingHistory;
 		} else {
 			throw new Error('Expected data.ratingHistory to be an Array, instead found ' + JSON.stringify(data.ratingHistory));
 		}
-		
+
 		if (Array.isArray(data.viewingHistory)) {
 			result.viewingHistory = data.viewingHistory;
 		} else {
 			throw new Error('Expected data.viewingHistory to be an Array, instead found ' + JSON.stringify(data.viewingHistory));
 		}
-		
+
 		if (typeof data.version === 'string' && data.version.match(/^\d+\.\d+\.\d+$/)) {
 			result.version = data.version;
 		} else {
 			throw new Error('Expected data.version to be a string like 1.2.3, instead found ' + data.version);
 		}
-		
+
 		console.log('Found rating history and viewing history');
 	} else {
 		throw new Error('An unexpected Error occurred while reading the data to be imported.');
 	}
-	
+
 	return result;
 };
 
