@@ -20,9 +20,10 @@ const sleep = util.promisify(setTimeout);
 async function main(args, netflix = new Netflix()) {
 	try {
 		console.log('Logging into Netflix using Cookies');
+		const cookies = args.cookie && args.cookie.split(/\r?\n/gm).join('').trim()
 		await netflix.login({
 								// remove linie breaks, just in case
-								cookies: args.cookie && args.cookie.split(/\r?\n/gm).join('')
+								cookies: cookies
 							});
 
 		console.log('Switching to profile ' + args.profile);
