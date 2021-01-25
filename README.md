@@ -3,14 +3,28 @@
 A command line utility to export and import your ratings.
 
 ## Usage
+To do its task, this tool needs to make Netflix believe that it is you. Sadly, this can no longer be done
+with just your username and password. Instead, you will have to extract the cookie Netflix sets for you
+and provide it to the CLI. But don't worry, I'll guide you through the entire process.
 
-First, you will need to retrieve the cookie Netflix sets in your browser after you log in. To do that, please log into
-your account just as usual. Once you're logged in, please open your browser's developer tools by pressing F12. Please
-make sure you are in the console tab of the dev tools. You should now have an input field, where you need to
-enter `document.cookie` and press enter. Please copy the value that is returned by your browsers (including the
-quotation marks!). This value will be required in a moment.
+### Extracting the cookie
+First, you'll need to login to Netflix and select your profile, just as usual. Now, please open your
+browser's dev tools by pressing F12 or right-clicking on the website and choosing "Inspect". Please
+select the "Network" tab on the top of the window that just popped up.
 
-Next, you can execute the actual commands. Please replace the actual values by your own:
+You should see a list of requests that Netflix is making. Scroll to the very top, where you should find
+a request to `www.netflix.com`. If you don't see this request, just reload the page while the network tab
+is open and look for it, again.
+
+Next, please click on this request. A new area should appear with a tab named "Headers". In that tab, please
+scroll down to the area titled "Request Headers" and search for `cookie: [very long value]`. Please copy
+this entire value. Make sure you do not miss any characters.
+
+### Passing the cookie to the CLI
+Now that you've got your cookie, you can execute the actual commands. Please replace the actual values
+below with your own. Make sure the cookie is surrounded by quotation marks! That section of the command
+should look somewhat like `--cookie "memclid=...%7D"` (your value inside the quotation marks might vary!).
+Here are the commands you'll need:
 
 ```
 npx netflix-migrate --cookie "your=cookie from=just-now" --profile Lana --export netflixData.json
