@@ -18,7 +18,9 @@ is open and look for it, again.
 
 Next, please click on this request. A new area should appear with a tab named "Headers". In that tab, please
 scroll down to the area titled "Request Headers" and search for `cookie: [very long value]`. Please copy
-this entire value. Make sure you do not miss any characters.
+this entire value by manually selecting it with your mouse and pressing Ctrl + C (right-clicking and
+choosing "Copy value" can lead to incorrect results in some browsers). Make sure you do not miss any
+characters.
 
 ### Passing the cookie to the CLI
 Now that you've got your cookie, you can execute the actual commands. Please replace the actual values
