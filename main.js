@@ -225,7 +225,7 @@ main.readDataFromChosenInput = (fileName) => {
 			throw new Error('Expected data.viewingHistory to be an Array, instead found ' + JSON.stringify(data.viewingHistory));
 		}
 
-		if (typeof data.version === 'string' && data.version.match(/^\d+\.\d+\.\d+(?:-(?:alpha)|(?:beta)\.\d+)?$/)) {
+		if (typeof data.version === 'string' && data.version.match(/^\d+\.\d+\.\d+(?:-(?:(?:alpha)|(?:beta))\.\d+)?$/)) {
 			result.version = data.version;
 		} else {
 			throw new Error('Expected data.version to be a string like 1.2.3 or 1.2.3-beta.4, instead found ' + data.version);
