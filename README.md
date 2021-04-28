@@ -13,7 +13,7 @@ Your exported data will also contain your viewing history. Currently, the import
 
 ## YouTube Demo
 
-[A little demo for newbies](https://youtu.be/t3UcrJB_8QY)
+[In case you're not so tech savvy, here's a short demo video](https://youtu.be/mOh5nnIZKOM)
 
 ## Warning
 
