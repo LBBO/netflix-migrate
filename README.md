@@ -11,6 +11,10 @@ You will be prompted for your email address, password, and/or profile name if no
 
 Your exported data will also contain your viewing history. Currently, the import function is only able to import the rating history, but that will hopefully change soon. However, you now already have your data and once the functionality is added you will be able to import your old viewing history too, even if you don't have any access to the old account anymore.
 
+## YouTube Demo
+
+[A little demo for newbies](https://youtu.be/t3UcrJB_8QY)
+
 ## Warning
 
 Use of this software may constitute a breach in the [Netflix Terms of Use](https://help.netflix.com/legal/termsofuse) and/or the [End User License Agreement](https://help.netflix.com/legal/eula). Use at your own risk.
