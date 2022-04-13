@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "array.prototype.find": "^2.0.0",
-    "async": "^2.0.0-rc.5",
+    "async": "^3.2.2",
     "commander": "^2.9.0",
     "netflix2": "^1.0.1",
     "prompt": "^1.0.0"
