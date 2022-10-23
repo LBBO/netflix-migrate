@@ -2,19 +2,7 @@
 
 A command line utility to export and import your ratings.
 
-## Usage
-```
-npx netflix-migrate --email old@example.com --profile Lana --export netflixData.json
-npx netflix-migrate --email new@example.com --profile Lana --import netflixData.json
-```
-You will be prompted for your email address, password, and/or profile name if not provided as a parameter. If you do not specify a file path for `--export` or `--import`, `stdout` and `stdin` will be used, respectively. If `--export` or `--import` are not provided, `--export` is assumed (and `stdout` will be used).
+## ⚠️ This repository is no longer actively maintained due to a native implementation of its features
+Netflix has implemented a migration feature natively, rendering this project basically useless. While netflix-migrate is able to export slightly more detailed data than you can get from Netflix's native export, the maintanance effort is quite high as they regularly change their API, thereby just breaking the project over night. Hence I have decided to officially stop maintaining this project (at least until the need for it resurfaces).
 
-Your exported data will also contain your viewing history. Currently, the import function is only able to import the rating history, but that will hopefully change soon. However, you now already have your data and once the functionality is added you will be able to import your old viewing history too, even if you don't have any access to the old account anymore.
-
-## YouTube Demo
-
-[In case you're not so tech savvy, here's a short demo video](https://youtu.be/D4YWp814UzM)
-
-## Warning
-
-Use of this software may constitute a breach in the [Netflix Terms of Use](https://help.netflix.com/legal/termsofuse) and/or the [End User License Agreement](https://help.netflix.com/legal/eula). Use at your own risk.
+If you're looking to migrate your profile to another Netflix account, please refer to [the documentation of the official account transfer feature](https://help.netflix.com/en/node/124844). If you want to use this project despite the official feature, please refer to the [`cookie-login` branch](https://github.com/LBBO/netflix-migrate/tree/cookie-login) which contains the latest version which hadn't been merged yet.
